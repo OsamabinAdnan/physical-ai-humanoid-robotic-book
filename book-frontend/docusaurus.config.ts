@@ -18,12 +18,12 @@ const config: Config = {
   url: 'https://osamabinadnan.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/physical-ai-humanoid-robotic/',
+  baseUrl: '/physical-ai-humanoid-robotic-book/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   organizationName: 'osamabinadnan', // Usually your GitHub org/user name.
-  projectName: 'physical-ai-humanoid-robotic', // Usually your repo name.
+  projectName: 'physical-ai-humanoid-robotic-book', // Usually your repo name.
 
   onBrokenLinks: 'throw',
 
@@ -89,7 +89,7 @@ const config: Config = {
         },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/osamabinadnan/physical-ai-humanoid-robotic',
+          href: 'https://github.com/osamabinadnan/physical-ai-humanoid-robotic-book',
           label: 'GitHub',
           position: 'right',
         },
@@ -133,7 +133,7 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/osamabinadnan/physical-ai-humanoid-robotic',
+              href: 'https://github.com/osamabinadnan/physical-ai-humanoid-robotic-book',
             },
           ],
         },
