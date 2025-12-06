@@ -81,7 +81,7 @@ By completing this course, you will:
 1. Begin with [**Module 1**](./module-1/) to build your ROS 2 foundation
 2. Progress through each module sequentially
 3. Complete hands-on exercises at each step
-4. Integrate everything in the [**Capstone Project**](./module-4/chapter-4/)
+4. Integrate everything in the [**Capstone Project**](./module-4/chapter-16/)
 
 ## 🌟 Why This Matters
 
@@ -94,7 +94,7 @@ This course prepares you to be at the forefront of this revolution, giving you t
 ### [Introduction to Physical AI](./intro)
 Start your journey with the foundational concepts of embodied intelligence.
 
-### [Complete System Architecture](./module-4/chapter-4/)
+### [Complete System Architecture](./module-4/chapter-16/)
 See how all components integrate in the capstone project.
 
 ### [Course Summary & Next Steps](./course-summary)
