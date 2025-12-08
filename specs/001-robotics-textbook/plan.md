@@ -16,21 +16,21 @@ The system architecture is a hybrid web application, combining a static frontend
 *   **Frontend (book-frontend/)**:
     *   **Technology**: Docusaurus (React-based static site generator).
     *   **Deployment**: GitHub Pages.
-    *   **Components**: Markdown content (docs, blog), custom React components for interactivity (personalization toggle, translation button, RAG chatbot UI).
+    *   **Components**: Markdown content (docs, blog), ChatKit SDK for RAG chatbot UI, custom React components for interactivity (personalization toggle, translation button, text selection features).
     *   **Interaction**: Communicates with `api-backend/` for RAG, authentication, personalization data, and translation services.
 
 *   **Backend (api-backend/)**:
     *   **Technology**: FastAPI (Python).
     *   **Deployment**: Serverless platform (specifically Vercel for optimal Next.js/Docusaurus integration).
     *   **Services**:
-        *   **RAG Chatbot API**: Exposes endpoints for processing user queries, interacting with OpenAI Agents/ChatKit, fetching relevant content from Qdrant, and querying Neon. (Implemented in Phase 4)
+        *   **RAG Chatbot API**: Exposes endpoints for processing user queries, interacting with OpenAI-compatible APIs (using Gemini via OpenAI SDK), fetching relevant content from Qdrant, and querying Neon. (Implemented in Phase 4)
         *   **Authentication API**: Integrates with Better-Auth.com for user registration, login, and session management. (Implemented in Phase 4)
         *   **Personalization API**: Stores and retrieves user background data from Neon, provides personalized content variations. (Implemented in Phase 4)
         *   **Translation API**: Interfaces with Google Translate API for Urdu translation of chapter content. (Implemented in Phase 4)
     *   **Data Flow**:
         *   **Neon Serverless Postgres**: Primary database for user profiles, personalization preferences, and potentially content metadata. (Used in Phase 4)
         *   **Qdrant Cloud Free Tier**: Vector database storing embeddings of the textbook content for efficient RAG retrieval. (Used in Phase 4)
-        *   **OpenAI Agents/ChatKit SDKs**: Orchestrates the RAG process, leverages LLMs for understanding queries and generating responses. (Used in Phase 4)
+        *   **OpenAI-compatible SDKs**: Orchestrates the RAG process, leverages Gemini via OpenAI SDK for understanding queries and generating responses. (Used in Phase 4)
 
 *   **Shared Components (shared/)**:
     *   Potentially common utilities, data models, or configuration if cross-language sharing becomes necessary (e.g., OpenAPI schemas generated from FastAPI for frontend).
@@ -102,9 +102,9 @@ The project relies on several key technological decisions, each chosen for speci
     *   **Trade-offs**: Python is well-suited for AI/ML integrations (OpenAI SDKs, Qdrant client). FastAPI offers high performance, automatic OpenAPI documentation (valuable for `contracts/`), and a modern async paradigm. While Node.js might integrate more seamlessly with a React frontend for shared types, Python\'s ecosystem for AI/data processing is a stronger match for the RAG chatbot.
     *   **Rationale**: Optimizes for `FR-018` (RAG backend integration) and the AI-centric nature of the RAG chatbot. Its performance aligns with `SC-006` (RAG accuracy) and `Performance Goals`.
 
-*   **RAG Components: OpenAI Agents/ChatKit SDKs, Neon, Qdrant**
-    *   **Options Considered**: Other LLM providers (Anthropic, Cohere), different vector databases (Pinecone, Weaviate), alternative relational databases (PostgreSQL, MongoDB).
-    *   **Trade-offs**: OpenAI Agents/ChatKit provide a powerful and flexible framework for building conversational AI, integrating well with LLMs. Neon offers a scalable, serverless PostgreSQL solution for relational data without managing infrastructure. Qdrant Cloud Free Tier provides a robust vector store essential for semantic search in RAG, keeping costs contained for initial scale. This combination balances performance, scalability, and cost-effectiveness.
+*   **RAG Components: OpenAI-compatible SDKs (using Gemini), sentence-transformers/all-MiniLM-L6-v2 (for embeddings), Neon, Qdrant, ChatKit**
+    *   **Options Considered**: Other LLM providers (Anthropic, Cohere), different vector databases (Pinecone, Weaviate), alternative relational databases (PostgreSQL, MongoDB), custom chat UI vs ChatKit, different embedding models (OpenAI embeddings vs sentence-transformers).
+    *   **Trade-offs**: OpenAI-compatible SDKs allow using Gemini via OpenAI interface, providing flexibility in LLM choice. sentence-transformers/all-MiniLM-L6-v2 provides efficient, cost-effective embeddings for vector storage. ChatKit provides pre-built, tested UI components for conversational interfaces. Neon offers a scalable, serverless PostgreSQL solution for relational data without managing infrastructure. Qdrant Cloud Free Tier provides a robust vector store essential for semantic search in RAG, keeping costs contained for initial scale. This combination balances performance, scalability, and cost-effectiveness.
     *   **Rationale**: Directly addresses `FR-015` (Interactivity Requirements) and `FR-018` (RAG backend integration). The choice supports the RAG chatbot\'s functionality and performance goals (`RAG Chatbot Response: Latency <2 seconds`).
 
 *   **Authentication Provider: Better-Auth.com**
@@ -271,7 +271,7 @@ The testing strategy will be multi-faceted, derived directly from the user scena
     *   Frontend Framework: Docusaurus (`FR-017`).
     *   Deployment: GitHub Pages.
     *   Auth Provider: Better-Auth.com.
-    *   RAG Components: OpenAI Agents/ChatKit SDKs, FastAPI, Neon, Qdrant (`FR-018`).
+    *   RAG Components: OpenAI-compatible SDKs (using Gemini), sentence-transformers/all-MiniLM-L6-v2 (for embeddings), FastAPI, Neon, Qdrant, ChatKit (`FR-018`).
     *   Content Structure: 4 modules, 4 chapters per module, 8-12 topics per chapter (`FR-001`, `FR-002`, `FR-003`).
     *   Reading Level: Flesch-Kincaid Grade 10-12 (`FR-010`).
     *   Source Verification: Strict academic/industry standards (`FR-004`).

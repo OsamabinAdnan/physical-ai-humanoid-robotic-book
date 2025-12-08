@@ -155,14 +155,21 @@ description: "Task list for Physical AI Humanoid Robotics Textbook implementatio
 
 - [ ] T055 [P] Setup Neon Serverless Postgres and Qdrant Cloud accounts
 - [ ] T056 [P] Setup Google Translate API for Urdu translation
-- [ ] T057 Develop RAG chatbot API endpoints in api-backend/src/
-- [ ] T058 Integrate Better-Auth.com for user authentication in api-backend/src/
-- [ ] T059 Implement personalization API in api-backend/src/
-- [ ] T060 Design vector embedding strategy and populate Qdrant with content chunks
-- [ ] T061 Integrate RAG frontend UI components in book-frontend/src/
-- [ ] T062 Add personalization toggle in book-frontend/src/
-- [ ] T063 Add translation button in book-frontend/src/
-- [ ] T064 Verify content is structured for RAG systems (FR-009) in all modules
+- [ ] T057 [P] Develop FastAPI backend structure for RAG chatbot in api-backend/src/
+- [ ] T058 [P] Integrate Better-Auth.com for user authentication in api-backend/src/
+- [ ] T059 [P] Implement personalization API in api-backend/src/
+- [ ] T060 [P] Design vector embedding strategy using sentence-transformers/all-MiniLM-L6-v2 model and populate Qdrant with textbook content chunks
+- [ ] T061 [P] Create OpenAI-compatible SDK integration (using Gemini) for RAG responses and sentence-transformers/all-MiniLM-L6-v2 for embeddings in api-backend/src/
+- [ ] T062 [P] Develop RAG search functionality connecting Qdrant and OpenAI-compatible SDK (using Gemini) in api-backend/src/
+- [ ] T063 [P] Implement text selection and context menu features in book-frontend/src/
+- [ ] T064 [P] Integrate ChatKit SDK for chatbot UI in book-frontend/src/
+- [ ] T065 [P] Connect frontend chatbot to backend RAG API in book-frontend/src/
+- [ ] T066 [P] Add selected text context options (explain, summarize, etc.) in book-frontend/src/
+- [ ] T067 [P] Implement user session management and chat history in api-backend/src/
+- [ ] T068 [P] Add rate limiting and security measures to API endpoints in api-backend/src/
+- [ ] T069 [P] Verify content is structured for RAG systems (FR-009) in all modules
+- [ ] T070 [P] Test RAG chatbot functionality with textbook content
+- [ ] T071 [P] Optimize vector search performance and relevance in Qdrant
 
 ---
 
@@ -170,13 +177,13 @@ description: "Task list for Physical AI Humanoid Robotics Textbook implementatio
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T065 [P] Verify all content meets Flesch-Kincaid grade level 10-12 across all modules
-- [ ] T066 [P] Verify all factual claims are supported by authoritative sources (FR-004, FR-005)
-- [ ] T067 [P] Validate Docusaurus build completes without errors (SC-005) in book-frontend/
-- [ ] T068 [P] Update navigation and user experience elements in book-frontend/src/
-- [ ] T069 [P] Add search functionality and improve content discoverability in book-frontend/
-- [ ] T070 Run comprehensive validation to ensure curriculum alignment (FR-012, SC-001) across all modules
-- [ ] T071 End-to-end integration testing of all features in book-frontend/
+- [ ] T072 [P] Verify all content meets Flesch-Kincaid grade level 10-12 across all modules
+- [ ] T073 [P] Verify all factual claims are supported by authoritative sources (FR-004, FR-005)
+- [ ] T074 [P] Validate Docusaurus build completes without errors (SC-005) in book-frontend/
+- [ ] T075 [P] Update navigation and user experience elements in book-frontend/src/
+- [ ] T076 [P] Add search functionality and improve content discoverability in book-frontend/
+- [ ] T077 Run comprehensive validation to ensure curriculum alignment (FR-012, SC-001) across all modules
+- [ ] T078 End-to-end integration testing of all features including RAG chatbot in book-frontend/
 
 ---
 

@@ -111,6 +111,45 @@ A researcher or enthusiast seeks insights into current applications of physical 
 - **Source**: An external academic paper, industry standard, or expert publication used to verify factual statements.
 - **Code Example**: Runnable and testable code snippets demonstrating concepts.
 - **Diagram**: Visual representation generated from verifiable data or code.
+- **User**: An authenticated individual with profile information, background, and preferences.
+- **Chat Session**: A collection of messages between user and AI assistant for a specific conversation.
+- **Chat Message**: An individual message in a conversation, either from user or assistant.
+- **Textbook Chunk**: A segment of textbook content that has been processed and embedded for RAG retrieval.
+- **Vector Embedding**: Numerical representation of text content for semantic similarity search.
+- **Authentication Token**: Secure token for maintaining user sessions.
+- **Personalization Profile**: User-specific settings and preferences for content delivery.
+
+## Backend Functional Requirements
+
+### Authentication & User Management
+- **FR-BE-001**: The system MUST integrate Better-Auth.com for user authentication, registration, and session management.
+- **FR-BE-002**: The system MUST collect and store user background information (software/hardware experience) for personalization.
+- **FR-BE-003**: The system MUST maintain secure user sessions with proper token management.
+
+### RAG System
+- **FR-BE-004**: The system MUST use Neon Serverless PostgreSQL to store user profiles, chat history, and content metadata.
+- **FR-BE-005**: The system MUST use Qdrant Cloud to store vector embeddings of textbook content for semantic search and retrieval.
+- **FR-BE-006**: The RAG chatbot MUST retrieve relevant textbook content based on user queries using vector similarity search in Qdrant.
+- **FR-BE-007**: The chatbot MUST generate responses that are grounded in the retrieved textbook content to prevent hallucinations.
+- **FR-BE-008**: The system MUST support "selected text mode" where users can ask questions specifically about highlighted content in the textbook.
+- **FR-BE-009**: The system MUST store and retrieve chat history to maintain conversation context across multiple interactions.
+- **FR-BE-010**: The system MUST use sentence-transformers/all-MiniLM-L6-v2 model for generating embeddings to store in Qdrant vector database and OpenAI-compatible SDK with Gemini for chat completions.
+
+### Frontend Integration
+- **FR-BE-011**: The system MUST integrate OpenAI's ChatKit SDK for the chatbot UI in the Docusaurus frontend.
+- **FR-BE-012**: The system MUST implement text selection and context menu features in the frontend.
+- **FR-BE-013**: The frontend MUST connect to backend RAG API endpoints for chat functionality.
+- **FR-BE-014**: The system MUST add selected text context options (explain, summarize, etc.) in the frontend.
+
+### Translation & Personalization
+- **FR-BE-015**: The system MUST provide on-demand translation of content to Urdu using Google Translate API.
+- **FR-BE-016**: The system MUST implement content personalization based on user background information.
+
+### Infrastructure & Security
+- **FR-BE-017**: The backend MUST be deployed as a serverless service compatible with the GitHub Pages frontend.
+- **FR-BE-018**: All API endpoints MUST implement proper rate limiting to prevent abuse and manage costs.
+- **FR-BE-019**: The system MUST handle errors gracefully and provide informative error messages to users.
+- **FR-BE-020**: The system MUST implement proper security measures including input validation, SQL injection prevention, and XSS protection.
 
 ## Success Criteria *(mandatory)*
 
@@ -123,3 +162,12 @@ A researcher or enthusiast seeks insights into current applications of physical 
 - **SC-005**: The textbook successfully builds without errors in the Docusaurus framework.
 - **SC-006**: The RAG backend can successfully retrieve relevant content chunks in response to queries with an accuracy of 90% or higher.
 - **SC-007**: User feedback (e.g., through surveys or analytics on AI tutor interactions) indicates high clarity and ease of understanding for 85% of readers.
+- **SC-BE-001**: User authentication and session management work seamlessly with Better-Auth.com integration.
+- **SC-BE-002**: The RAG system achieves 90%+ accuracy in retrieving relevant textbook content for queries.
+- **SC-BE-003**: Selected text mode functions correctly, providing focused responses on highlighted content.
+- **SC-BE-004**: Personalization features adapt content based on user background information.
+- **SC-BE-005**: Urdu translation service provides accurate translations with 95%+ accuracy.
+- **SC-BE-006**: The backend successfully handles 100 concurrent users without performance degradation.
+- **SC-BE-007**: All API endpoints return proper error codes and messages for various failure scenarios.
+- **SC-BE-008**: The system maintains 99% uptime during peak usage hours.
+- **SC-BE-009**: User feedback indicates high satisfaction with AI-powered explanations (4+ stars average).
