@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Better Auth settings
     BETTER_AUTH_SECRET: Optional[str] = os.getenv("BETTER_AUTH_SECRET")
-    BETTER_AUTH_URL: str = os.getenv("BETTER_AUTH_URL", "http://localhost:3000")
+    BETTER_AUTH_URL: str = os.getenv("BETTER_AUTH_URL", "https://osamabinadnan.github.io/physical-ai-humanoid-robotic-book")
 
     class Config:
         env_file = ".env"
