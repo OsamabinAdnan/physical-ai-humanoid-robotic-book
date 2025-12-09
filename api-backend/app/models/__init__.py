@@ -1,1 +1,0 @@
-# Database models for the Physical AI Humanoid Robotics Textbook backend
