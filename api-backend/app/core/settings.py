@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # Qdrant settings
     QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
     QDRANT_CLUSTER_ENDPOINT: str = os.getenv("QDRANT_CLUSTER_ENDPOINT", "")
-    QDRANT_HOST: str = os.getenv("QDRANT_HOST", "https://0150bb67-cb51-4126-b9a5-3d4436bf071d.us-east4-0.gcp.cloud.qdrant.io")
+    QDRANT_CLUSTER_ID: str = os.getenv("QDRANT_CLUSTER_ID", "")
 
     # Gemini settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
