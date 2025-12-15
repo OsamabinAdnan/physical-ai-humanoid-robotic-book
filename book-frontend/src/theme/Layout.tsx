@@ -258,7 +258,7 @@ const apiService = {
     try {
       // Use environment variable or default to localhost, but make it configurable
       // Check if we're in a browser environment (where process might not be defined)
-      let API_BASE_URL = 'https://osamabinadnan-rag-chatbot.hf.space/';
+      let API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://osamabinadnan-rag-chatbot.hf.space': 'http://127.0.0.1:8000';  // Local development
       if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE_URL) {
         API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
       }

@@ -9,6 +9,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from agents import Runner
+from agent.agent import agent
+
+
 # Load environment variables
 load_dotenv()
 
@@ -42,8 +46,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "*",
-        "http://localhost:3000/physical-ai-humanoid-robotic-book/",
         "https://osamabinadnan.github.io/physical-ai-humanoid-robotic-book/",
+        "http://localhost:3000/physical-ai-humanoid-robotic-book/",
     ],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],  # This allows all methods including OPTIONS
@@ -93,9 +97,7 @@ async def chat_with_agent(request: QueryRequest):
         logger.info(f"Processing chat request: {request.question}")
 
         # Import agent components inside the function to avoid startup issues
-        from agents import Runner
-
-        from agent.agent import agent
+        
 
         # Prepare the input for the agent based on the request
         input_text = request.question
