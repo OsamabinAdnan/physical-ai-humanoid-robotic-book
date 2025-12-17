@@ -258,7 +258,7 @@ const apiService = {
     try {
       // Use environment variable or default to localhost, but make it configurable
       // Check if we're in a browser environment (where process might not be defined)
-      let API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://osamabinadnan-rag-chatbot.hf.space': 'http://127.0.0.1:8000';  // Local development
+      let API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://osamabinadnan-rag-with-neondb.hf.space': 'http://127.0.0.1:8000';  // Local development
       if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE_URL) {
         API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
       }
@@ -502,6 +502,78 @@ const FunctionalChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [chatSessions, setChatSessions] = useState<any[]>([]);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Generate a temporary user ID for the session
+  const getOrCreateUserId = () => {
+    let userId = localStorage.getItem('chat_user_id');
+    if (!userId) {
+      userId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('chat_user_id', userId);
+    }
+    return userId;
+  };
+
+  // Fetch user chat history
+  const fetchChatHistory = async () => {
+    try {
+      const userId = getOrCreateUserId();
+      setLoadingHistory(true);
+      const response = await fetch(`https://osamabinadnan-rag-with-neondb.hf.space/chat-history/${userId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch chat history: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      setChatSessions(data.sessions || []);
+    } catch (err) {
+      console.error('Error fetching chat history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Load a specific session history
+  const loadSessionHistory = async (session: any) => {
+    try {
+      const userId = getOrCreateUserId();
+      const response = await fetch(`https://osamabinadnan-rag-with-neondb.hf.space/chat-history/${userId}/session/${session.id}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch session history: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+
+      // Convert backend messages to frontend message format
+      const convertedMessages: IChatMessage[] = data.messages.map((msg: any) => ({
+        id: msg.id,
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content,
+        timestamp: new Date(msg.created_at),
+        metadata: msg.citations ? { citations: msg.citations } : undefined
+      }));
+
+      setMessages(convertedMessages);
+      setSelectedSession(session);
+      setShowHistory(false); // Close the history panel after loading
+    } catch (err) {
+      console.error('Error loading session history:', err);
+    }
+  };
+
+  // Start a new chat session
+  const startNewChat = () => {
+    setMessages([]);
+    setSelectedSession(null);
+  };
+
+  // Load chat history when history panel is opened
+  useEffect(() => {
+    if (showHistory && isOpen) {
+      fetchChatHistory();
+    }
+  }, [showHistory, isOpen]);
 
   // Add initial message when component mounts and chat is opened
   useEffect(() => {
@@ -716,28 +788,184 @@ const FunctionalChatbot = () => {
         borderTopLeftRadius: '16px',
         borderTopRightRadius: '16px'
       }}>
-        <h3 style={{ fontSize: '22px', fontWeight: '600', margin: 0, color: 'white' }}>Physical AI Assistant</h3>
-        <button
-          onClick={() => setIsOpen(false)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'white',
-            cursor: 'pointer',
-            fontSize: '28px',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          ×
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: 'white' }}>
+            {selectedSession ? selectedSession.title : 'Physical AI Assistant'}
+          </h3>
+          {selectedSession && (
+            <button
+              onClick={startNewChat}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              title="Start new chat"
+            >
+              ✚ New
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '16px',
+              padding: '4px',
+              borderRadius: '4px',
+              transition: 'background-color 0.2s ease'
+            }}
+            title="Chat history"
+          >
+            📜
+          </button>
+          <button
+            onClick={() => setIsOpen(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '28px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ×
+          </button>
+        </div>
       </div>
-      <ChatResponse messages={messages} />
-      <ChatInput onSubmit={handleChatSubmit} disabled={isLoading} />
+
+      {/* Chat history panel */}
+      {showHistory ? (
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          backgroundColor: 'white',
+          border: '1px solid var(--ifm-color-emphasis-300)',
+          borderBottomLeftRadius: '16px',
+          borderBottomRightRadius: '16px',
+          margin: '0 16px 16px 16px'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px 16px',
+            backgroundColor: '#f5f5f5',
+            borderBottom: '1px solid #e0e0e0'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#333' }}>Chat History</h3>
+            <button
+              onClick={() => setShowHistory(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#666',
+                cursor: 'pointer',
+                fontSize: '18px',
+                padding: 0,
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {loadingHistory ? (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{
+                display: 'flex',
+                gap: '4px'
+              }}>
+                <span style={{ backgroundColor: '#666', borderRadius: '50%', width: '8px', height: '8px', display: 'inline-block', animation: 'loading 1.4s infinite ease-in-out both' }}></span>
+                <span style={{ backgroundColor: '#666', borderRadius: '50%', width: '8px', height: '8px', display: 'inline-block', animation: 'loading 1.4s infinite ease-in-out both', animationDelay: '-0.32s' }}></span>
+                <span style={{ backgroundColor: '#666', borderRadius: '50%', width: '8px', height: '8px', display: 'inline-block', animation: 'loading 1.4s infinite ease-in-out both', animationDelay: '-0.16s' }}></span>
+                <style>{`
+                  @keyframes loading {
+                    0%, 80%, 100% { transform: scale(0); }
+                    40% { transform: scale(1); }
+                  }
+                `}</style>
+              </div>
+            </div>
+          ) : chatSessions.length === 0 ? (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#666',
+              fontStyle: 'italic'
+            }}>
+              No chat history available
+            </div>
+          ) : (
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              {chatSessions.map((session) => (
+                <div
+                  key={session.id}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    backgroundColor: selectedSession?.id === session.id ? '#e3f2fd' : '#f9f9f9',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s ease',
+                    border: selectedSession?.id === session.id ? '1px solid #1a73e8' : '1px solid #e0e0e0',
+                    ':hover': {
+                      backgroundColor: '#f0f0f0'
+                    }
+                  }}
+                  onClick={() => loadSessionHistory(session)}
+                >
+                  <div style={{ fontWeight: '500', marginBottom: '4px', color: '#333' }}>
+                    {session.title}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {new Date(session.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <ChatResponse messages={messages} />
+          <ChatInput onSubmit={handleChatSubmit} disabled={isLoading} />
+        </>
+      )}
     </div>
   );
 };

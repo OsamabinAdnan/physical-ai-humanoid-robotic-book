@@ -5,12 +5,18 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from datetime import datetime
+from typing import List
 
 from agents import Runner
 from agent.agent import agent
+
+# Import database components
+from database import engine, AsyncDBSession
+from database.services import DatabaseService
 
 
 # Load environment variables
@@ -29,7 +35,18 @@ async def lifespan(app: FastAPI):
     Lifespan event handler for startup and shutdown events.
     """
     logger.info("RAG Chatbot Agent API starting up...")
+
+    # Initialize database connection
+    logger.info("Initializing database connection...")
+    from database import init_db_engine
+    init_db_engine()
+
     yield
+
+    # Cleanup database connection
+    logger.info("Cleaning up database connection...")
+    from database import engine
+    await engine.dispose()
     logger.info("RAG Chatbot Agent API shutting down...")
 
 
@@ -47,7 +64,6 @@ app.add_middleware(
     allow_origins=[
         "*",
         "https://osamabinadnan.github.io/physical-ai-humanoid-robotic-book/",
-        "http://localhost:3000/physical-ai-humanoid-robotic-book/",
     ],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],  # This allows all methods including OPTIONS
@@ -56,6 +72,24 @@ app.add_middleware(
 
 # Import schemas from the agent module after app is defined to avoid circular imports
 from agent.schemas import Citation, QueryRequest, QueryResponse
+
+# Import database schemas
+from database.schemas import (
+    ChatSessionSchema,
+    ChatMessageSchema,
+    ChatHistoryResponseSchema,
+    UserChatHistoryResponseSchema,
+    CreateSessionRequestSchema
+)
+
+
+# Dependency to get database service
+async def get_db_service():
+    from database import init_db_engine, AsyncDBSession
+    # Ensure the database is initialized
+    init_db_engine()
+    async with AsyncDBSession() as session:
+        yield DatabaseService(session)
 
 
 @app.get("/")
@@ -81,12 +115,16 @@ async def root():
 
 
 @app.post("/chat", response_model=QueryResponse)
-async def chat_with_agent(request: QueryRequest):
+async def chat_with_agent(
+    request: QueryRequest,
+    db_service: DatabaseService = Depends(get_db_service)
+):
     """
     Chat endpoint for users to interact with the RAG agent.
 
     Args:
         request (QueryRequest): User's question and parameters
+        db_service: Database service for persistence
 
     Returns:
         QueryResponse: Agent's response with citations and metadata
@@ -96,8 +134,37 @@ async def chat_with_agent(request: QueryRequest):
 
         logger.info(f"Processing chat request: {request.question}")
 
+        # For now, using a placeholder user ID - in the future, this will come from authentication
+        # For the current implementation, we'll create a temporary user if needed
+        import uuid
+        user_id = uuid.uuid4()  # Placeholder - will be replaced with actual user ID from auth later
+
+        # Create a temporary user record to satisfy the foreign key constraint
+        temp_user = await db_service.user.get_user_by_id(user_id)
+        if not temp_user:
+            temp_user = await db_service.user.create_user(
+                email=f"temp_{user_id}@example.com",  # Create a unique email
+                name=f"Temp User {str(user_id)[:8]}"  # Create a unique name
+            )
+
+        # Create or get chat session
+        # For now, we'll create a new session for each request, but in the future we might want to
+        # accept a session_id in the request to continue an existing conversation
+        session = await db_service.chat_session.create_session(
+            user_id=temp_user.id,
+            title=f"Chat session: {request.question[:50]}..."  # Use first 50 chars of question as title
+        )
+
+        # Store the user's question in the database
+        await db_service.chat_message.add_message(
+            session_id=session.id,
+            user_id=temp_user.id,
+            role="user",
+            content=request.question
+        )
+
         # Import agent components inside the function to avoid startup issues
-        
+
 
         # Prepare the input for the agent based on the request
         input_text = request.question
@@ -131,6 +198,14 @@ async def chat_with_agent(request: QueryRequest):
             processing_time_ms=processing_time,
         )
 
+        # Store the agent's response in the database
+        await db_service.chat_message.add_message(
+            session_id=session.id,
+            user_id=temp_user.id,  # Agent responses are stored with the user ID for now
+            role="assistant",
+            content=response_text
+        )
+
         logger.info(f"Chat request processed successfully in {processing_time}ms")
         return response
     except Exception as e:
@@ -138,6 +213,123 @@ async def chat_with_agent(request: QueryRequest):
         raise HTTPException(
             status_code=500, detail=f"Error processing chat request: {str(e)}"
         )
+
+
+@app.get("/chat-history/{user_id}", response_model=UserChatHistoryResponseSchema)
+async def get_user_chat_history(
+    user_id: str,
+    db_service: DatabaseService = Depends(get_db_service)
+):
+    """
+    Get all chat sessions for a specific user.
+    """
+    try:
+        logger.info(f"Fetching chat history for user: {user_id}")
+
+        # Convert user_id to UUID
+        import uuid
+        user_uuid = uuid.UUID(user_id)
+
+        # Get all sessions for the user
+        sessions = await db_service.chat_session.get_sessions_by_user(user_uuid)
+
+        # Convert to response format
+        session_list = []
+        for session in sessions:
+            session_list.append(ChatSessionSchema(
+                id=str(session.id),
+                user_id=str(session.user_id),
+                session_id=session.session_id,
+                title=session.title,
+                created_at=session.created_at,
+                updated_at=session.updated_at
+            ))
+
+        return UserChatHistoryResponseSchema(sessions=session_list)
+    except Exception as e:
+        logger.error(f"Error fetching user chat history: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching chat history: {str(e)}"
+        )
+
+
+@app.get("/chat-history/{user_id}/session/{session_id}", response_model=ChatHistoryResponseSchema)
+async def get_session_history(
+    user_id: str,
+    session_id: str,
+    db_service: DatabaseService = Depends(get_db_service)
+):
+    """
+    Get all messages for a specific chat session.
+    """
+    try:
+        logger.info(f"Fetching session history for user: {user_id}, session: {session_id}")
+
+        # Convert IDs to UUIDs
+        import uuid
+        user_uuid = uuid.UUID(user_id)
+        session_uuid = uuid.UUID(session_id)
+
+        # Get the session
+        session = await db_service.chat_session.get_session_by_id(session_uuid, user_uuid)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Get all messages for the session
+        messages = await db_service.chat_message.get_messages_by_session(session_uuid, user_uuid)
+
+        # Convert to response format
+        message_list = []
+        for message in messages:
+            message_list.append(ChatMessageSchema(
+                id=str(message.id),
+                session_id=str(message.session_id),
+                user_id=str(message.user_id),
+                role=message.role,
+                content=message.content,
+                token_count=message.token_count,
+                created_at=message.created_at
+            ))
+
+        session_schema = ChatSessionSchema(
+            id=str(session.id),
+            user_id=str(session.user_id),
+            session_id=session.session_id,
+            title=session.title,
+            created_at=session.created_at,
+            updated_at=session.updated_at
+        )
+
+        return ChatHistoryResponseSchema(
+            session=session_schema,
+            messages=message_list
+        )
+    except Exception as e:
+        logger.error(f"Error fetching session history: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching session history: {str(e)}"
+        )
+
+
+@app.get("/db-health")
+async def db_health_check(db_service: DatabaseService = Depends(get_db_service)):
+    """
+    Check the health status of the database connection.
+    """
+    try:
+        # Test database connectivity by executing a simple query
+        from sqlalchemy import text
+        result = await db_service.db_session.execute(text("SELECT 1"))
+        db_status = "healthy"
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        db_status = f"unhealthy: {str(e)}"
+
+    return {
+        "status": db_status,
+        "timestamp": time.time(),
+        "service": "neon_database"
+    }
 
 
 @app.get("/health")

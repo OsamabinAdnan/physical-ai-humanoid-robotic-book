@@ -6,7 +6,7 @@ import os
 import sys
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 def test_imports():
     print("Testing imports...")
@@ -14,25 +14,25 @@ def test_imports():
     # Test basic imports
     try:
         from agent.schemas import QueryRequest, QueryResponse, Citation
-        print("[OK] Schemas imported successfully")
+        print("✓ Schemas imported successfully")
     except Exception as e:
-        print(f"[ERROR] Schemas import failed: {e}")
+        print(f"✗ Schemas import failed: {e}")
         return False
 
     # Test retriever import
     try:
         from agent.retriever import retrieve, get_embedding, perform_qdrant_search, format_search_results
-        print("[OK] Retriever imported successfully")
+        print("✓ Retriever imported successfully")
     except Exception as e:
-        print(f"[ERROR] Retriever import failed: {e}")
+        print(f"✗ Retriever import failed: {e}")
         return False
 
     # Test main app import
     try:
         from main import app
-        print("[OK] Main app imported successfully")
+        print("✓ Main app imported successfully")
     except Exception as e:
-        print(f"[ERROR] Main app import failed: {e}")
+        print(f"✗ Main app import failed: {e}")
         return False
 
     # Test agent import (with environment variables set to avoid errors)
@@ -43,12 +43,12 @@ def test_imports():
         os.environ.setdefault("QDRANT_API_KEY", "dummy_key")
 
         from agent.agent import agent
-        print("[OK] Agent imported successfully")
+        print("✓ Agent imported successfully")
     except Exception as e:
-        print(f"[ERROR] Agent import failed: {e}")
+        print(f"✗ Agent import failed: {e}")
         return False
 
-    print("\nAll imports successful! [OK]")
+    print("\nAll imports successful! ✓")
     return True
 
 if __name__ == "__main__":

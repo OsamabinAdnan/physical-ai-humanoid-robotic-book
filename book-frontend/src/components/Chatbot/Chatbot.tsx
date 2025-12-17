@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import styles from './Chatbot.module.css';
 import { QueryRequest, QueryResponse, Message } from './types';
-import { sendMessage } from './api';
+import { sendMessage, getUserChatHistory, getSessionHistory, ChatSession, ChatMessage, UserChatHistoryResponse } from './api';
 
 const Chatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,6 +11,10 @@ const Chatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedText, setSelectedText] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -31,6 +35,66 @@ const Chatbot: React.FC = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Generate a temporary user ID for the session
+  const getOrCreateUserId = () => {
+    let userId = localStorage.getItem('chat_user_id');
+    if (!userId) {
+      userId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('chat_user_id', userId);
+    }
+    return userId;
+  };
+
+  // Fetch user chat history
+  const fetchChatHistory = async () => {
+    try {
+      const userId = getOrCreateUserId();
+      setLoadingHistory(true);
+      const response = await getUserChatHistory(userId);
+      setChatSessions(response.sessions);
+    } catch (err) {
+      console.error('Error fetching chat history:', err);
+      // Don't set error state for history loading as it shouldn't break the main chat functionality
+      // setError('Failed to load chat history');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Load chat history when history panel is opened
+  useEffect(() => {
+    if (showHistory && isOpen) {
+      fetchChatHistory();
+    }
+  }, [showHistory, isOpen]);
+
+  // Load a specific session history
+  const loadSessionHistory = async (session: ChatSession) => {
+    const userId = getOrCreateUserId();
+    try {
+      const response = await getSessionHistory(userId, session.id);
+      // Convert backend messages to frontend message format
+      const convertedMessages: Message[] = response.messages.map(msg => ({
+        id: msg.id,
+        text: msg.content,
+        sender: msg.role as 'user' | 'bot',
+        timestamp: new Date(msg.created_at),
+      }));
+      setMessages(convertedMessages);
+      setSelectedSession(session);
+      setShowHistory(false); // Close the history panel after loading
+    } catch (err) {
+      console.error('Error loading session history:', err);
+      setError('Failed to load session history');
+    }
+  };
+
+  // Start a new chat session
+  const startNewChat = () => {
+    setMessages([]);
+    setSelectedSession(null);
   };
 
   // Handle sending a message to the backend
@@ -214,114 +278,185 @@ const Chatbot: React.FC = () => {
       {isOpen && (
         <div className={styles.chatContainer}>
           <div className={styles.chatWindow}>
-            {/* Chat header */}
+            {/* Chat header with history button */}
             <div className={styles.chatHeader}>
-              <span>AI Assistant</span>
-              <button
-                className={styles.chatCloseButton}
-                onClick={closeChat}
-                aria-label="Close chat"
-              >
-                ×
-              </button>
+              <div className={styles.chatHeaderLeft}>
+                <span>{selectedSession ? selectedSession.title : 'AI Assistant'}</span>
+              </div>
+              <div className={styles.chatHeaderRight}>
+                {selectedSession && (
+                  <button
+                    className={styles.newChatButton}
+                    onClick={startNewChat}
+                    title="Start new chat"
+                  >
+                    ✚ New
+                  </button>
+                )}
+                <button
+                  className={styles.historyButton}
+                  onClick={() => setShowHistory(!showHistory)}
+                  title="Chat history"
+                >
+                  📜
+                </button>
+                <button
+                  className={styles.chatCloseButton}
+                  onClick={closeChat}
+                  aria-label="Close chat"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
-            {/* Messages area */}
-            <div className={styles.chatMessages}>
-              {messages.length === 0 ? (
-                <div className={clsx(styles.message, styles.botMessage)}>
-                  Hello! I'm your AI assistant for the Physical AI & Humanoid Robotics textbook. How can I help you today?
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={clsx(
-                      styles.message,
-                      message.sender === 'user' ? styles.userMessage : styles.botMessage
-                    )}
+            {/* Chat history panel */}
+            {showHistory && (
+              <div className={styles.historyPanel}>
+                <div className={styles.historyHeader}>
+                  <h3>Chat History</h3>
+                  <button
+                    className={styles.closeHistoryButton}
+                    onClick={() => setShowHistory(false)}
+                    aria-label="Close history"
                   >
-                    {message.text}
-                    {message.citations && message.citations.length > 0 && (
-                      <div className={styles.citation}>
-                        <strong>Citations:</strong>
-                        <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
-                          {message.citations.slice(0, 3).map((citation, index) => (
-                            <li key={index}>
-                              <a
-                                href={citation.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: 'inherit', textDecoration: 'underline' }}
-                              >
-                                {citation.source_title}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {message.confidence !== undefined && (
-                      <div className={styles.confidenceScore}>
-                        Confidence: {(message.confidence * 100).toFixed(1)}%
-                      </div>
-                    )}
-                    {message.text.includes('Sorry, I encountered an error') && message.sender === 'bot' && (
-                      <div style={{ marginTop: '8px', textAlign: 'right' }}>
-                        <button
-                          onClick={() => handleRetry(message.id)}
-                          className={styles.sendButton}
-                          style={{ padding: '4px 8px', fontSize: '12px', width: 'auto', height: 'auto' }}
-                        >
-                          Retry
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-              {isLoading && (
-                <div className={clsx(styles.message, styles.botMessage)}>
-                  <div className={styles.loadingIndicator}>
+                    ×
+                  </button>
+                </div>
+                {loadingHistory ? (
+                  <div className={styles.loadingHistory}>
                     <div className={styles.loadingDots}>
                       <span></span>
                       <span></span>
                       <span></span>
                     </div>
                   </div>
-                </div>
-              )}
-              {error && (
-                <div className={clsx(styles.message, styles.botMessage)}>
-                  Error: {error}
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+                ) : chatSessions.length === 0 ? (
+                  <div className={styles.noHistory}>
+                    No chat history available
+                  </div>
+                ) : (
+                  <div className={styles.historyList}>
+                    {chatSessions.map((session) => (
+                      <div
+                        key={session.id}
+                        className={clsx(
+                          styles.historyItem,
+                          selectedSession?.id === session.id ? styles.historyItemSelected : ''
+                        )}
+                        onClick={() => loadSessionHistory(session)}
+                      >
+                        <div className={styles.historyTitle}>{session.title}</div>
+                        <div className={styles.historyDate}>
+                          {new Date(session.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Messages area */}
+            {!showHistory && (
+              <div className={styles.chatMessages}>
+                {messages.length === 0 ? (
+                  <div className={clsx(styles.message, styles.botMessage)}>
+                    Hello! I'm your AI assistant for the Physical AI & Humanoid Robotics textbook. How can I help you today?
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={clsx(
+                        styles.message,
+                        message.sender === 'user' ? styles.userMessage : styles.botMessage
+                      )}
+                    >
+                      {message.text}
+                      {message.citations && message.citations.length > 0 && (
+                        <div className={styles.citation}>
+                          <strong>Citations:</strong>
+                          <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                            {message.citations.slice(0, 3).map((citation, index) => (
+                              <li key={index}>
+                                <a
+                                  href={citation.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: 'inherit', textDecoration: 'underline' }}
+                                >
+                                  {citation.source_title}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                      {message.confidence !== undefined && (
+                        <div className={styles.confidenceScore}>
+                          Confidence: {(message.confidence * 100).toFixed(1)}%
+                        </div>
+                      )}
+                      {message.text.includes('Sorry, I encountered an error') && message.sender === 'bot' && (
+                        <div style={{ marginTop: '8px', textAlign: 'right' }}>
+                          <button
+                            onClick={() => handleRetry(message.id)}
+                            className={styles.sendButton}
+                            style={{ padding: '4px 8px', fontSize: '12px', width: 'auto', height: 'auto' }}
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+                {isLoading && (
+                  <div className={clsx(styles.message, styles.botMessage)}>
+                    <div className={styles.loadingIndicator}>
+                      <div className={styles.loadingDots}>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {error && (
+                  <div className={clsx(styles.message, styles.botMessage)}>
+                    Error: {error}
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
 
             {/* Input area */}
-            <div className={styles.chatInputArea}>
-              <textarea
-                ref={chatInputRef}
-                className={styles.chatInput}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={selectedText
-                  ? `Ask about: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`
-                  : "Ask about the textbook content..."}
-                rows={1}
-                disabled={isLoading}
-              />
-              <button
-                className={styles.sendButton}
-                onClick={handleSendMessage}
-                disabled={isLoading || (!inputValue.trim() && !selectedText)}
-                aria-label="Send message"
-              >
-                <span>➤</span>
-              </button>
-            </div>
+            {!showHistory && (
+              <div className={styles.chatInputArea}>
+                <textarea
+                  ref={chatInputRef}
+                  className={styles.chatInput}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder={selectedText
+                    ? `Ask about: "${selectedText.substring(0, 30)}${selectedText.length > 30 ? '...' : ''}"`
+                    : "Ask about the textbook content..."}
+                  rows={1}
+                  disabled={isLoading}
+                />
+                <button
+                  className={styles.sendButton}
+                  onClick={handleSendMessage}
+                  disabled={isLoading || (!inputValue.trim() && !selectedText)}
+                  aria-label="Send message"
+                >
+                  <span>➤</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
