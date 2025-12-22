@@ -37,13 +37,13 @@ qdrant = QdrantClient(
 )
 
 # Get Qwen API credentials from environment
-QWEN_API_KEY = os.getenv("QWEN_API_KEY")
-if not QWEN_API_KEY:
-    raise Exception("Missing QWEN_API_KEY environment variable")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+if not OPENROUTER_API_KEY:
+    raise Exception("Missing OPENROUTER_API_KEY environment variable")
 
-QWEN_URL = os.getenv("QWEN_URL")
-if not QWEN_URL:
-    raise Exception("Missing QWEN_URL environment variable")
+OPENROUTER_URL = os.getenv("OPENROUTER_URL")
+if not OPENROUTER_URL:
+    raise Exception("Missing OPENROUTER_URL environment variable")
 
 def get_embedding(text: str) -> List[float]:
     """
@@ -128,14 +128,14 @@ def format_search_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 # Initialize the AsyncOpenAI-compatible client with Qwen details
 external_client: AsyncOpenAI = AsyncOpenAI(
-    api_key=QWEN_API_KEY,
-    base_url=QWEN_URL,
+    api_key=OPENROUTER_API_KEY,
+    base_url=OPENROUTER_URL,
 )
 
 
 # Model Initialization - using Qwen model with OpenAI-compatible interface
 model: OpenAIChatCompletionsModel = OpenAIChatCompletionsModel(
-    model="qwen3-coder-plus",  # Using Qwen model
+    model="mistralai/devstral-2512:free",  # Using OpenRouter free model
     openai_client=external_client
 )
 
