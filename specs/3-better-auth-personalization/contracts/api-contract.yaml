@@ -1,0 +1,236 @@
+openapi: 3.0.0
+info:
+  title: Better Auth and Content Personalization API
+  description: API for user authentication and content personalization
+  version: 1.0.0
+
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      description: Creates a new user account with background information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+                - software_background
+                - hardware_background
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: User's email address
+                password:
+                  type: string
+                  format: password
+                  description: User's password
+                name:
+                  type: string
+                  description: User's display name
+                software_background:
+                  type: string
+                  enum: [beginner, intermediate, expert]
+                  description: User's software expertise level
+                hardware_background:
+                  type: string
+                  enum: [beginner, intermediate, expert]
+                  description: User's hardware expertise level
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user_id:
+                    type: string
+                    format: uuid
+                  session_token:
+                    type: string
+                  message:
+                    type: string
+        '400':
+          description: Invalid input data
+        '409':
+          description: Email already exists
+
+  /api/auth/login:
+    post:
+      summary: Login user
+      description: Authenticates user and returns session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user_id:
+                    type: string
+                    format: uuid
+                  session_token:
+                    type: string
+                  message:
+                    type: string
+        '400':
+          description: Invalid email or password
+        '401':
+          description: Authentication failed
+
+  /api/auth/logout:
+    post:
+      summary: Logout user
+      description: Ends the user's session
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_token:
+                  type: string
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Invalid or expired session
+
+  /api/auth/me:
+    get:
+      summary: Get current authenticated user
+      description: Returns information about the currently authenticated user based on the session token. This is a standard endpoint pattern to retrieve the user associated with the current session without needing to pass a user ID in the URL.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user information retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  is_authenticated:
+                    type: boolean
+        '401':
+          description: Invalid or expired session
+
+  /personalize:
+    post:
+      summary: Personalize chapter content
+      description: Generates personalized content based on user background
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - chapter_url
+                - chapter_content
+              properties:
+                chapter_url:
+                  type: string
+                  format: uri
+                  description: URL of the chapter to personalize
+                chapter_content:
+                  type: string
+                  description: Original chapter content to personalize
+      responses:
+        '200':
+          description: Content personalized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  personalized_summary:
+                    type: string
+                    description: AI-generated personalized summary
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Invalid input data
+        '401':
+          description: User not authenticated
+        '500':
+          description: Personalization service error
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        software_background:
+          type: string
+          enum: [beginner, intermediate, expert]
+        hardware_background:
+          type: string
+          enum: [beginner, intermediate, expert]
+        email_verified:
+          type: boolean
