@@ -135,7 +135,7 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
         <Link
           to="/signin"
           style={{
-            backgroundColor: 'var(--ifm-color-secondary)',
+            backgroundColor: 'var(--ifm-color-primary)',
             color: 'white',
             border: 'none',
             borderRadius: '30px',
@@ -143,7 +143,7 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
             fontSize: '15px',
             fontWeight: '600',
             cursor: 'pointer',
-            boxShadow: '0 6px 12px rgba(99, 102, 241, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)',
+            boxShadow: '0 6px 12px rgba(79, 70, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
@@ -152,11 +152,11 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
           }}
           onMouseEnter={(e) => {
             (e.target as HTMLElement).style.transform = 'scale(1.05)';
-            (e.target as HTMLElement).style.boxShadow = '0 8px 16px rgba(99, 102, 241, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15)';
+            (e.target as HTMLElement).style.boxShadow = '0 8px 16px rgba(79, 70, 229, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15)';
           }}
           onMouseLeave={(e) => {
             (e.target as HTMLElement).style.transform = 'scale(1)';
-            (e.target as HTMLElement).style.boxShadow = '0 6px 12px rgba(99, 102, 241, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)';
+            (e.target as HTMLElement).style.boxShadow = '0 6px 12px rgba(79, 70, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)';
           }}
         >
           <span>🔒</span> {/* Lock icon */}
