@@ -737,7 +737,9 @@ const FunctionalChatbot = () => {
       }
 
       // Get current user ID from auth context
-      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
+      // Detect production environment by checking the hostname (GitHub Pages deployment)
+      const isProduction = typeof window !== 'undefined' && window.location.hostname === 'osamabinadnan.github.io';
+      const BACKEND_URL = isProduction
         ? 'https://osamabinadnan-rag-with-neondb.hf.space'
         : (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL ? process.env.REACT_APP_BACKEND_URL : 'http://127.0.0.1:8000');
 
@@ -801,7 +803,9 @@ const FunctionalChatbot = () => {
       }
 
       // Get current user ID from auth context
-      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
+      // Detect production environment by checking the hostname (GitHub Pages deployment)
+      const isProduction = typeof window !== 'undefined' && window.location.hostname === 'osamabinadnan.github.io';
+      const BACKEND_URL = isProduction
         ? 'https://osamabinadnan-rag-with-neondb.hf.space'
         : (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL ? process.env.REACT_APP_BACKEND_URL : 'http://127.0.0.1:8000');
       const userResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
@@ -961,7 +965,9 @@ const FunctionalChatbot = () => {
       }
 
       // Get current user ID from auth context
-      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
+      // Detect production environment by checking the hostname (GitHub Pages deployment)
+      const isProduction = typeof window !== 'undefined' && window.location.hostname === 'osamabinadnan.github.io';
+      const BACKEND_URL = isProduction
         ? 'https://osamabinadnan-rag-with-neondb.hf.space'
         : (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL ? process.env.REACT_APP_BACKEND_URL : 'http://127.0.0.1:8000');
 
