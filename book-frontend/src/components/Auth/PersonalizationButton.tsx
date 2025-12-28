@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import Link from '@docusaurus/Link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import LoadingSpinner from '../Loading/LoadingSpinner';
 
 interface PersonalizationButtonProps {
   chapterUrl: string;
@@ -13,10 +14,11 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
   const { isAuthenticated } = useAuth();
   const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [personalizedContent, setPersonalizedContent] = useState<string | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
   const [showOriginal, setShowOriginal] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset when chapter changes
+  // Reset when chapter changes - ensure we don't show old personalized content for new chapter
   useEffect(() => {
     setPersonalizedContent(null);
     setShowOriginal(true);
@@ -31,6 +33,12 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
 
     setIsPersonalizing(true);
     setError(null);
+    // Clear the previous personalized content to ensure we're loading fresh content for current page
+    setPersonalizedContent(null);
+
+    // Create an AbortController to allow cancellation
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       const BACKEND_URL = typeof process !== 'undefined' && process.env ? ("https://osamabinadnan-rag-with-neondb.hf.space") : 'http://127.0.0.1:8000';
@@ -44,20 +52,41 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
           chapter_url: chapterUrl,
           chapter_content: chapterContent,
         }),
+        signal: abortController.signal, // Add signal for cancellation
       });
 
       if (!response.ok) {
+        // Check if the request was cancelled
+        if (abortController.signal.aborted) {
+          // Request was cancelled, don't show an error
+          return;
+        }
         throw new Error(`Personalization failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      setPersonalizedContent(data.personalized_summary);
-      setShowOriginal(false);
+      // Only update state if not cancelled
+      if (!abortController.signal.aborted) {
+        setPersonalizedContent(data.personalized_summary);
+        setShowOriginal(false);
+      }
     } catch (err) {
+      // Check if the error was due to cancellation
+      if (err instanceof Error && err.name === 'AbortError') {
+        // Request was cancelled, don't show an error
+        return;
+      }
       console.error('Personalization error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred during personalization');
     } finally {
-      setIsPersonalizing(false);
+      // Only update state if not cancelled
+      if (!abortController.signal.aborted) {
+        setIsPersonalizing(false);
+      }
+      // Clean up the ref
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -73,64 +102,156 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
       zIndex: '99998',
     }}>
       {isAuthenticated ? (
-        <button
-          onClick={personalizedContent ? toggleContent : handlePersonalize}
-          disabled={isPersonalizing}
-          style={{
-            background: isPersonalizing ? 'linear-gradient(135deg, #4F46E5 0%, #9333EA 100%)' : 'var(--ifm-color-primary)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '30px', // More rounded
-            padding: '14px 24px',
-            fontSize: '15px',
-            fontWeight: '600',
-            cursor: isPersonalizing ? 'not-allowed' : 'pointer',
-            boxShadow: isPersonalizing
-              ? '0 6px 12px rgba(79, 70, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)'
-              : '0 6px 12px rgba(79, 70, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            transition: 'all 0.3s ease', // Smooth transitions
-            transform: 'scale(1)',
-          }}
-          onMouseEnter={(e) => {
-            if (!isPersonalizing) {
-              (e.target as HTMLElement).style.transform = 'scale(1.05)';
-              (e.target as HTMLElement).style.boxShadow = '0 8px 16px rgba(79, 70, 229, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isPersonalizing) {
-              (e.target as HTMLElement).style.transform = 'scale(1)';
-              (e.target as HTMLElement).style.boxShadow = '0 6px 12px rgba(79, 70, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)';
-            }
-          }}
-        >
-          {isPersonalizing ? (
-            <>
-              <span style={{
-                display: 'inline-block',
-                width: '14px',
-                height: '14px',
-                borderRadius: '50%',
-                backgroundColor: 'currentColor',
-                animation: 'loading 1.4s infinite ease-in-out both'
-              }} />
-              <span>Personalizing...</span>
-            </>
-          ) : personalizedContent && !showOriginal ? (
-            <>
-              <span>🔄</span> {/* Refresh icon */}
-              <span>Show Original</span>
-            </>
-          ) : (
-            <>
-              <span>✨</span> {/* Sparkle icon */}
-              <span>Personalize Content</span>
-            </>
+        <>
+          {isPersonalizing && (
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: '100002',
+              }}
+              className="personalization-loading-overlay"
+              onClick={() => {
+                // Allow user to cancel by clicking outside
+                if (abortControllerRef.current) {
+                  abortControllerRef.current.abort();
+                  abortControllerRef.current = null;
+                }
+                setIsPersonalizing(false);
+                setPersonalizedContent(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  // Allow user to cancel with ESC key
+                  if (abortControllerRef.current) {
+                    abortControllerRef.current.abort();
+                    abortControllerRef.current = null;
+                  }
+                  setIsPersonalizing(false);
+                  setPersonalizedContent(null);
+                }
+              }}
+              tabIndex={0} // Make div focusable to handle key events
+            >
+              <div style={{
+                width: '40vw',
+                height: '40vh',
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '1.5rem',
+                padding: '2rem',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                position: 'relative',
+              }}
+              onClick={(e) => e.stopPropagation()} // Prevent click from bubbling to overlay
+              >
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  border: '4px solid #e0e0e0',
+                  borderTop: '4px solid var(--ifm-color-primary)',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                }} />
+                <div style={{
+                  textAlign: 'center',
+                }}>
+                  <h3 style={{
+                    margin: '0 0 0.5rem 0',
+                    color: 'var(--ifm-font-color-base)',
+                    fontSize: '1.5rem',
+                  }}>
+                    Personalizing Content...
+                  </h3>
+                  <p style={{
+                    margin: '0.5rem 0',
+                    color: 'var(--ifm-font-color-base)',
+                    textAlign: 'center',
+                  }}>
+                    Please wait while we customize the content based on your expertise level.
+                  </p>
+                  <p style={{
+                    margin: '0.5rem 0 0 0',
+                    color: '#666',
+                    fontSize: '0.875rem',
+                    fontStyle: 'italic',
+                  }}>
+                    Press ESC or click outside to cancel
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
-        </button>
+          <button
+            onClick={personalizedContent ? toggleContent : handlePersonalize}
+            disabled={isPersonalizing}
+            style={{
+              background: isPersonalizing ? 'linear-gradient(135deg, #4F46E5 0%, #9333EA 100%)' : 'var(--ifm-color-primary)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '30px', // More rounded
+              padding: '14px 24px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: isPersonalizing ? 'not-allowed' : 'pointer',
+              boxShadow: isPersonalizing
+                ? '0 6px 12px rgba(79, 70, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)'
+                : '0 6px 12px rgba(79, 70, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              transition: 'all 0.3s ease', // Smooth transitions
+              transform: 'scale(1)',
+            }}
+            onMouseEnter={(e) => {
+              if (!isPersonalizing) {
+                (e.target as HTMLElement).style.transform = 'scale(1.05)';
+                (e.target as HTMLElement).style.boxShadow = '0 8px 16px rgba(79, 70, 229, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isPersonalizing) {
+                (e.target as HTMLElement).style.transform = 'scale(1)';
+                (e.target as HTMLElement).style.boxShadow = '0 6px 12px rgba(79, 70, 229, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1)';
+              }
+            }}
+          >
+            {isPersonalizing ? (
+              <>
+                <span style={{
+                  display: 'inline-block',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  backgroundColor: 'currentColor',
+                  animation: 'loading 1.4s infinite ease-in-out both'
+                }} />
+                <span>Personalizing...</span>
+              </>
+            ) : personalizedContent && !showOriginal ? (
+              <>
+                <span>🔄</span> {/* Refresh icon */}
+                <span>Show Original</span>
+              </>
+            ) : (
+              <>
+                <span>✨</span> {/* Sparkle icon */}
+                <span>Personalize Content</span>
+              </>
+            )}
+          </button>
+        </>
       ) : (
         <Link
           to="/signin"
@@ -169,6 +290,33 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
         @keyframes loading {
           0%, 80%, 100% { transform: scale(0); }
           40% { transform: scale(1); }
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* Loading overlay styles */
+        .personalization-loading-overlay {
+          background-color: rgba(0, 0, 0, 0.7) !important;
+        }
+
+        [data-theme="dark"] .personalization-loading-overlay {
+          background-color: rgba(0, 0, 0, 0.7) !important;
+        }
+
+        [data-theme="dark"] .personalization-loading-overlay > div {
+          background-color: #1e1e2e !important;
+          color: white !important;
+        }
+
+        [data-theme="dark"] .personalization-loading-overlay h3 {
+          color: white !important;
+        }
+
+        [data-theme="dark"] .personalization-loading-overlay p {
+          color: #e6e6e6 !important;
         }
 
         /* Glassmorphism styles for light and dark themes */

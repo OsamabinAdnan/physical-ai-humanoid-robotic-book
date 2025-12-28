@@ -506,13 +506,31 @@ async def personalize_content(
         logger.info(f"Chapter URL: {request.chapter_url}")
         logger.info(f"Chapter content length: {len(request.chapter_content)} characters")
 
-        # Extract chapter ID from URL for logging
+        # Extract chapter ID from URL - using full URL path as identifier to ensure uniqueness
         import re
-        # Handle different URL formats (GitHub Pages, localhost, etc.)
-        chapter_path_match = re.search(r'/docs/(.+?)(?:\.html)?(?:[#?].*)?$', request.chapter_url)
-        chapter_id = chapter_path_match.group(1) if chapter_path_match else request.chapter_url.split('/')[-1]
-        # Clean up the chapter_id to ensure it's a valid identifier
-        chapter_id = re.sub(r'[^\w\-_]', '_', chapter_id)
+        from urllib.parse import urlparse
+
+        # Use the full path after /docs/ as the chapter ID to ensure uniqueness
+        parsed = urlparse(request.chapter_url)
+        full_path = parsed.path
+
+        # Extract everything after /docs/ to make each chapter unique
+        if '/docs/' in full_path:
+            # Get the part after /docs/ and normalize it
+            chapter_path = full_path.split('/docs/', 1)[1].strip('/')
+            # Remove file extensions but keep the full path structure
+            chapter_path = re.sub(r'\.html$', '', chapter_path)
+            # Ensure it's a valid identifier but keep path separators as underscores
+            chapter_id = re.sub(r'/', '_', chapter_path)  # Replace path separators with underscores
+            chapter_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', chapter_id)  # Clean up any other special chars
+        else:
+            # Fallback: use the full path with safe characters only
+            chapter_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', full_path)
+
+        # Ensure the chapter_id is not empty
+        if not chapter_id or chapter_id == '':
+            chapter_id = 'unknown_chapter'
+
         logger.info(f"Chapter ID being personalized: {chapter_id}")
         logger.info(f"User expertise - Software: {current_user.get('software_background')}, Hardware: {current_user.get('hardware_background')}")
 
@@ -520,12 +538,6 @@ async def personalize_content(
         from hashlib import sha256
         import openai
         import uuid
-
-        # Extract chapter ID from URL (this handles both localhost and production URLs)
-        import re
-        # Extract the chapter path from the URL
-        chapter_path_match = re.search(r'/docs/(.+)', request.chapter_url)
-        chapter_id = chapter_path_match.group(1) if chapter_path_match else request.chapter_url.split('/')[-1]
 
         # Get user's background information
         user = await db_service.user.get_user_by_id(uuid.UUID(current_user.get('id')))
@@ -543,7 +555,8 @@ async def personalize_content(
             user.id, chapter_id
         )
 
-        if existing_content and existing_content.original_content_hash == original_content_hash:
+        # Only return cached content if it exists, the content hasn't changed, AND it's for the same URL
+        if existing_content and existing_content.original_content_hash == original_content_hash and existing_content.chapter_url == request.chapter_url:
             # Return existing personalized content
             return PersonalizeContentResponse(
                 success=True,
@@ -574,11 +587,13 @@ INSTRUCTIONS:
 2. If the user is a beginner, explain concepts simply with analogies and clear examples.
 3. If the user is intermediate, provide more detail and context while still explaining fundamentals.
 4. If the user is an expert, dive deep into technical aspects, advanced concepts, and applications.
-5. CRITICAL: Preserve the original content structure including headings, subheadings, bullet points, numbered lists, code blocks, and tables.
+5. CRITICAL: Preserve the original content structure including headings (##, ###), subheadings, bullet points (-, *), numbered lists (1., 2.), code blocks (```), and tables.
 6. Maintain the same hierarchy and formatting as the original content.
 7. Only modify the explanations and examples based on the user's expertise level, keeping the educational flow intact.
+8. Do not remove or change any formatting elements like markdown syntax, lists, or structural elements.
+9. Ensure all headings, lists, and code blocks are properly formatted in the response.
 
-Please provide a personalized version of the content that is tailored to the user's expertise level while preserving the original structure and formatting.
+Please provide a personalized version of the content that is tailored to the user's expertise level while preserving the original structure and formatting exactly.
 """
 
         # Call the OpenRouter API to generate personalized content

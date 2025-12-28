@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import OriginalLayout from '@theme-original/Layout';
 import { AuthProvider, useAuth } from '../components/Auth/AuthContext';
 import PersonalizationButton from '../components/Auth/PersonalizationButton';
+import PageNavigationLoader from '../components/Loading/PageNavigationLoader';
 
 // Text selection handler as a React component
 const TextSelectionHandler = () => {
@@ -1335,6 +1336,7 @@ export default function Layout(props) {
     <AuthProvider>
       <>
         <OriginalLayout {...props} />
+        <PageNavigationLoader />
         <TextSelectionHandler />
         <FunctionalChatbot />
         <DocumentPersonalization />
