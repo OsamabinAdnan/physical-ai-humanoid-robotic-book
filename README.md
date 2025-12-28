@@ -39,12 +39,20 @@ The platform now includes advanced content personalization based on user experti
 - Personalized content includes tailored explanations, examples, and depth of information
 - Users can toggle between original and personalized content views
 - Content personalization leverages the OpenRouter API with Mistral-7B model
+- **Caching behavior**: If personalized content already exists for the same chapter and content hasn't changed, the system returns cached results instead of making a new API call
 
 ### Personalization API Endpoints
 
 - `POST /personalize` - Generate personalized content based on user background and chapter context
   - Request body: `{ "chapter_url": string, "chapter_content": string }`
   - Response: `{ "success": boolean, "personalized_summary": string, "message": string }`
+
+### Required Environment Variables for Personalization
+
+The personalization feature requires the following environment variables to be set in the backend:
+
+- `OPENROUTER_API_KEY` - API key for OpenRouter service (required for AI processing)
+- `OPENROUTER_URL` - URL for OpenRouter API (default: https://openrouter.ai/api/v1)
 
 ### Database Schema Updates
 
@@ -536,6 +544,25 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Open Robotics for ROS 2 development
 - OpenAI for Whisper technology
 - The robotics research community for continuous innovation
+
+## Troubleshooting
+
+### Personalization API Not Calling OpenRouter
+
+If the personalization API returns quickly without calling the OpenRouter API:
+- Check if the `OPENROUTER_API_KEY` environment variable is properly set in your deployment
+- Verify that the `OPENROUTER_URL` environment variable is configured correctly
+- Note that the system caches personalized content for performance - if content already exists for the same chapter, cached results are returned instead of making a new API call
+- To test the actual OpenRouter API call, try personalizing a chapter that hasn't been personalized before
+
+### Environment Variables Required for Full Functionality
+
+Make sure these environment variables are set in your backend deployment:
+- `OPENROUTER_API_KEY` - Required for AI-powered content personalization
+- `OPENROUTER_URL` - API endpoint for OpenRouter (default: https://openrouter.ai/api/v1)
+- `QDRANT_CLUSTER_ENDPOINT` - Required for vector storage and retrieval
+- `QDRANT_API_KEY` - Required for Qdrant Cloud access
+- `NEON_DATABASE_URL` - Required for database operations
 
 ## Support
 
