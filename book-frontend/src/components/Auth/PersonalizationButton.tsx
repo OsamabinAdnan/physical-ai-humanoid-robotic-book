@@ -50,6 +50,9 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
       const BACKEND_URL = process.env.NODE_ENV === 'production'
         ? 'https://osamabinadnan-rag-with-neondb.hf.space'
         : (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000');
+      // Ensure the chapter URL has the protocol (required by backend validator)
+      const fullChapterUrl = chapterUrl.startsWith('http') ? chapterUrl : `${window.location.protocol}//${window.location.host}${chapterUrl}`;
+
       const response = await fetch(`${BACKEND_URL}/personalize`, {
         method: 'POST',
         headers: {
@@ -57,7 +60,7 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          chapter_url: chapterUrl,
+          chapter_url: fullChapterUrl,
           chapter_content: chapterContent,
         }),
         signal: abortController.signal, // Add signal for cancellation
