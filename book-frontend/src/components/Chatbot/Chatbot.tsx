@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import styles from './Chatbot.module.css';
 import { QueryRequest, QueryResponse, Message } from './types';
 import { sendMessage, getUserChatHistory, getSessionHistory, ChatSession, ChatMessage, UserChatHistoryResponse } from './api';
+import { useAuth } from '../Auth/AuthContext';
 
 const Chatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,6 +16,9 @@ const Chatbot: React.FC = () => {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+
+  const { user, isAuthenticated } = useAuth();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -37,8 +41,14 @@ const Chatbot: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Generate a temporary user ID for the session
+  // Generate a user ID for the session (use authenticated user ID if available, otherwise temporary)
   const getOrCreateUserId = () => {
+    // If user is authenticated, use their ID
+    if (isAuthenticated && user && user.id) {
+      return user.id;
+    }
+
+    // Otherwise, use temporary user ID
     let userId = localStorage.getItem('chat_user_id');
     if (!userId) {
       userId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -52,8 +62,16 @@ const Chatbot: React.FC = () => {
     try {
       const userId = getOrCreateUserId();
       setLoadingHistory(true);
+      console.log('Fetching chat history for user:', userId);
+
       const response = await getUserChatHistory(userId);
-      setChatSessions(response.sessions);
+      console.log('Raw chat history response:', response);
+
+      // Ensure the response has the expected structure
+      const sessions = Array.isArray(response) ? response : (response && response.sessions) ? response.sessions : [];
+      console.log('Processed chat sessions:', sessions);
+
+      setChatSessions(sessions);
     } catch (err) {
       console.error('Error fetching chat history:', err);
       // Don't set error state for history loading as it shouldn't break the main chat functionality
@@ -69,6 +87,13 @@ const Chatbot: React.FC = () => {
       fetchChatHistory();
     }
   }, [showHistory, isOpen]);
+
+  // Load chat history when user authenticates
+  useEffect(() => {
+    if (isAuthenticated && isOpen && messages.length === 0) {
+      fetchChatHistory();
+    }
+  }, [isAuthenticated, isOpen, messages.length]);
 
   // Load a specific session history
   const loadSessionHistory = async (session: ChatSession) => {
@@ -95,6 +120,7 @@ const Chatbot: React.FC = () => {
   const startNewChat = () => {
     setMessages([]);
     setSelectedSession(null);
+    setCurrentSessionId(null);
   };
 
   // Handle sending a message to the backend
@@ -103,6 +129,9 @@ const Chatbot: React.FC = () => {
 
     const question = inputValue.trim() || (selectedText || '').trim();
     if (!question) return;
+
+    // Check if this is the first message in a new conversation
+    const isNewConversation = messages.length === 0;
 
     // Add user message to chat
     const userMessage: Message = {
@@ -140,6 +169,17 @@ const Chatbot: React.FC = () => {
       };
 
       setMessages(prev => [...prev, botMessage]);
+
+      // If this was the first message in a new conversation, refresh the chat history
+      // to load the new session that was created on the backend
+      if (isNewConversation) {
+        // Small delay to ensure the session is created on the backend before fetching history
+        setTimeout(() => {
+          if (showHistory) {
+            fetchChatHistory();
+          }
+        }, 1000);
+      }
     } catch (err) {
       console.error('Error sending message:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -346,7 +386,7 @@ const Chatbot: React.FC = () => {
                         )}
                         onClick={() => loadSessionHistory(session)}
                       >
-                        <div className={styles.historyTitle}>{session.title}</div>
+                        <div className={styles.historyTitle}>{session.title || `Chat ${new Date(session.created_at).toLocaleString()}`}</div>
                         <div className={styles.historyDate}>
                           {new Date(session.created_at).toLocaleDateString()}
                         </div>

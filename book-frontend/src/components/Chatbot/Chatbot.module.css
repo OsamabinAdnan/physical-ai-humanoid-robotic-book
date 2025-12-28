@@ -48,9 +48,12 @@
   font-family: 'Roboto', 'Segoe UI', sans-serif;
 }
 
-[data-theme='dark'] .chatWindow {
-  background: #1e1e2e;
-  color: #e6e6e6;
+[data-theme='dark'] .chatWindow,
+.chatWindow[data-theme='dark'],
+.dark .chatWindow,
+html[data-theme='dark'] .chatWindow {
+  background: #1e1e2e !important;
+  color: #e6e6e6 !important;
 }
 
 .chatHeader {
@@ -201,9 +204,13 @@
   height: 100%;
 }
 
-[data-theme='dark'] .historyPanel {
-  background: #2a2a3a;
-  border-top: 1px solid #3a3a4e;
+[data-theme='dark'] .historyPanel,
+.historyPanel[data-theme='dark'],
+.dark .historyPanel,
+html[data-theme='dark'] .historyPanel {
+  background: #1e1e2e !important;
+  border-top: 1px solid #3a3a4e !important;
+  color: #e6e6e6 !important;
 }
 
 .historyHeader {
@@ -215,9 +222,12 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
-[data-theme='dark'] .historyHeader {
-  background: #3a3a4e;
-  border-bottom: 1px solid #4a4a5e;
+[data-theme='dark'] .historyHeader,
+.historyHeader[data-theme='dark'],
+.dark .historyHeader,
+html[data-theme='dark'] .historyHeader {
+  background: #2a2a3a !important;
+  border-bottom: 1px solid #3a3a4e !important;
 }
 
 .historyHeader h3 {
@@ -227,8 +237,11 @@
   color: #333;
 }
 
-[data-theme='dark'] .historyHeader h3 {
-  color: #e6e6e6;
+[data-theme='dark'] .historyHeader h3,
+.historyHeader[data-theme='dark'] h3,
+.dark .historyHeader h3,
+html[data-theme='dark'] .historyHeader h3 {
+  color: #e6e6e6 !important;
 }
 
 .closeHistoryButton {
@@ -249,12 +262,18 @@
   color: #333;
 }
 
-[data-theme='dark'] .closeHistoryButton {
-  color: #aaa;
+[data-theme='dark'] .closeHistoryButton,
+.closeHistoryButton[data-theme='dark'],
+.dark .closeHistoryButton,
+html[data-theme='dark'] .closeHistoryButton {
+  color: #aaa !important;
 }
 
-[data-theme='dark'] .closeHistoryButton:hover {
-  color: #e6e6e6;
+[data-theme='dark'] .closeHistoryButton:hover,
+.closeHistoryButton[data-theme='dark']:hover,
+.dark .closeHistoryButton:hover,
+html[data-theme='dark'] .closeHistoryButton:hover {
+  color: #e6e6e6 !important;
 }
 
 .loadingHistory {
@@ -291,19 +310,28 @@
   border-color: #1a73e8;
 }
 
-[data-theme='dark'] .historyItem {
-  background: #3a3a4e;
-  border-color: #4a4a5e;
-  color: #e6e6e6;
+[data-theme='dark'] .historyItem,
+.historyItem[data-theme='dark'],
+.dark .historyItem,
+html[data-theme='dark'] .historyItem {
+  background: #2a2a3a !important;
+  border: 1px solid #3a3a4e !important;
+  color: #e6e6e6 !important;
 }
 
-[data-theme='dark'] .historyItem:hover {
-  background: #4a4a5e;
+[data-theme='dark'] .historyItem:hover,
+.historyItem[data-theme='dark']:hover,
+.dark .historyItem:hover,
+html[data-theme='dark'] .historyItem:hover {
+  background: #3a3a4e !important;
 }
 
-[data-theme='dark'] .historyItemSelected {
-  background: #1a237e;
-  border-color: #1a73e8;
+[data-theme='dark'] .historyItemSelected,
+.historyItemSelected[data-theme='dark'],
+.dark .historyItemSelected,
+html[data-theme='dark'] .historyItemSelected {
+  background: #3a4a9e !important;
+  border-color: #1a73e8 !important;
 }
 
 .historyTitle {
@@ -315,8 +343,11 @@
   text-overflow: ellipsis;
 }
 
-[data-theme='dark'] .historyTitle {
-  color: #e6e6e6;
+[data-theme='dark'] .historyTitle,
+.historyTitle[data-theme='dark'],
+.dark .historyTitle,
+html[data-theme='dark'] .historyTitle {
+  color: #e6e6e6 !important;
 }
 
 .historyDate {
@@ -324,8 +355,11 @@
   color: #666;
 }
 
-[data-theme='dark'] .historyDate {
-  color: #aaa;
+[data-theme='dark'] .historyDate,
+.historyDate[data-theme='dark'],
+.dark .historyDate,
+html[data-theme='dark'] .historyDate {
+  color: #aaa !important;
 }
 
 .noHistory {
@@ -337,8 +371,11 @@
   font-style: italic;
 }
 
-[data-theme='dark'] .noHistory {
-  color: #aaa;
+[data-theme='dark'] .noHistory,
+.noHistory[data-theme='dark'],
+.dark .noHistory,
+html[data-theme='dark'] .noHistory {
+  color: #aaa !important;
 }
 
 .chatInput {

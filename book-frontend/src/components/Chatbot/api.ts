@@ -39,11 +39,20 @@ export interface UserChatHistoryResponse {
  */
 export const sendMessage = async (request: QueryRequest): Promise<QueryResponse> => {
   try {
+    // Get auth token if available
+    const authToken = localStorage.getItem('authToken');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
     const response = await fetch(`${BACKEND_URL}/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       body: JSON.stringify(request),
     });
 
@@ -65,7 +74,20 @@ export const sendMessage = async (request: QueryRequest): Promise<QueryResponse>
  */
 export const healthCheck = async (): Promise<any> => {
   try {
-    const response = await fetch(`${BACKEND_URL}/health`);
+    // Get auth token if available
+    const authToken = localStorage.getItem('authToken');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${BACKEND_URL}/health`, {
+      headers: headers,
+    });
 
     if (!response.ok) {
       throw new Error(`Health check failed: ${response.status} ${response.statusText}`);
@@ -86,13 +108,44 @@ export const healthCheck = async (): Promise<any> => {
  */
 export const getUserChatHistory = async (userId: string): Promise<UserChatHistoryResponse> => {
   try {
-    const response = await fetch(`${BACKEND_URL}/chat-history/${userId}`);
+    // Get auth token if available
+    const authToken = localStorage.getItem('authToken');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${BACKEND_URL}/chat-history/${userId}`, {
+      headers: headers,
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch chat history: ${response.status} ${response.statusText}`);
     }
 
-    const data: UserChatHistoryResponse = await response.json();
+    const rawData = await response.json();
+    console.log('Raw data from chat history API:', rawData);
+
+    // Handle different possible response structures
+    let data: UserChatHistoryResponse;
+
+    // If rawData already has the expected structure
+    if (rawData && typeof rawData === 'object' && Array.isArray(rawData.sessions)) {
+      data = rawData as UserChatHistoryResponse;
+    } else if (Array.isArray(rawData)) {
+      // If the response is directly an array of sessions
+      data = { sessions: rawData };
+    } else {
+      // If the response structure is unexpected, create a default structure
+      console.warn('Unexpected chat history response structure, using empty sessions');
+      data = { sessions: [] };
+    }
+
+    console.log('Processed chat history data:', data);
     return data;
   } catch (error) {
     console.error('Error fetching user chat history:', error);
@@ -108,7 +161,20 @@ export const getUserChatHistory = async (userId: string): Promise<UserChatHistor
  */
 export const getSessionHistory = async (userId: string, sessionId: string): Promise<ChatHistoryResponse> => {
   try {
-    const response = await fetch(`${BACKEND_URL}/chat-history/${userId}/session/${sessionId}`);
+    // Get auth token if available
+    const authToken = localStorage.getItem('authToken');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${BACKEND_URL}/chat-history/${userId}/session/${sessionId}`, {
+      headers: headers,
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch session history: ${response.status} ${response.statusText}`);

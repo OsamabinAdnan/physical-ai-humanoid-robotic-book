@@ -90,6 +90,21 @@ const config: Config = {
           label: 'Textbook',
         },
         {
+          to: '/signin',
+          label: 'Sign In',
+          position: 'right',
+        },
+        {
+          to: '/signup',
+          label: 'Sign Up',
+          position: 'right',
+        },
+        {
+          to: '/profile',
+          label: 'Profile',
+          position: 'right',
+        },
+        {
           href: 'https://github.com/osamabinadnan/physical-ai-humanoid-robotic-book',
           label: 'GitHub',
           position: 'right',

@@ -46,9 +46,16 @@ class UserService(BaseService):
     """
     Service class for user operations.
     """
-    async def create_user(self, email: str, name: Optional[str] = None) -> User:
-        """Create a new user."""
-        user = User(email=email, name=name)
+    async def create_user(self, email: str, password_hash: str, name: Optional[str] = None,
+                         software_background: str = "beginner", hardware_background: str = "beginner") -> User:
+        """Create a new user with authentication fields."""
+        user = User(
+            email=email,
+            password_hash=password_hash,
+            name=name,
+            software_background=software_background,
+            hardware_background=hardware_background
+        )
         return await self._create(user)
 
     async def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
@@ -60,6 +67,18 @@ class UserService(BaseService):
         stmt = select(User).where(User.email == email)
         result = await self.db_session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def update_user_background(self, user_id: uuid.UUID, software_background: str = None,
+                                   hardware_background: str = None) -> Optional[User]:
+        """Update user background information."""
+        user = await self.get_user_by_id(user_id)
+        if user:
+            if software_background:
+                user.software_background = software_background
+            if hardware_background:
+                user.hardware_background = hardware_background
+            return await self._update(user)
+        return None
 
     async def update_user(self, user_id: uuid.UUID, **kwargs) -> Optional[User]:
         """Update user fields."""
@@ -224,6 +243,60 @@ class DocumentService(BaseService):
         return False
 
 
+class PersonalizedContentService(BaseService):
+    """
+    Service class for personalized content operations.
+    """
+    async def create_personalized_content(self, user_id: uuid.UUID, chapter_id: str, chapter_url: str,
+                                        original_content_hash: str, personalized_summary: str,
+                                        personalization_level: str) -> 'PersonalizedContent':
+        """Create a new personalized content record."""
+        from .models import PersonalizedContent
+        content = PersonalizedContent(
+            user_id=user_id,
+            chapter_id=chapter_id,
+            chapter_url=chapter_url,
+            original_content_hash=original_content_hash,
+            personalized_summary=personalized_summary,
+            personalization_level=personalization_level
+        )
+        return await self._create(content)
+
+    async def get_personalized_content_by_user_and_chapter(self, user_id: uuid.UUID, chapter_id: str) -> Optional['PersonalizedContent']:
+        """Get personalized content for a specific user and chapter (most recent one)."""
+        from .models import PersonalizedContent
+        stmt = select(PersonalizedContent).where(
+            and_(PersonalizedContent.user_id == user_id, PersonalizedContent.chapter_id == chapter_id)
+        ).order_by(PersonalizedContent.created_at.desc()).limit(1)  # Get the most recent one
+        result = await self.db_session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_personalized_content_by_id(self, content_id: uuid.UUID) -> Optional['PersonalizedContent']:
+        """Get personalized content by ID."""
+        from .models import PersonalizedContent
+        return await self._get_by_id(PersonalizedContent, content_id)
+
+    async def update_personalized_content(self, content_id: uuid.UUID, **kwargs) -> Optional['PersonalizedContent']:
+        """Update personalized content fields."""
+        from .models import PersonalizedContent
+        content = await self.get_personalized_content_by_id(content_id)
+        if content:
+            for key, value in kwargs.items():
+                if hasattr(content, key):
+                    setattr(content, key, value)
+            return await self._update(content)
+        return None
+
+    async def delete_personalized_content(self, content_id: uuid.UUID) -> bool:
+        """Delete personalized content."""
+        from .models import PersonalizedContent
+        content = await self.get_personalized_content_by_id(content_id)
+        if content:
+            await self._delete(content)
+            return True
+        return False
+
+
 # Combined service class for easier dependency injection
 class DatabaseService:
     """
@@ -235,3 +308,4 @@ class DatabaseService:
         self.chat_session = ChatSessionService(db_session)
         self.chat_message = ChatMessageService(db_session)
         self.document = DocumentService(db_session)
+        self.personalized_content = PersonalizedContentService(db_session)

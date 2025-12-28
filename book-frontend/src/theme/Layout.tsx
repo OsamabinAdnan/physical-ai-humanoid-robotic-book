@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import OriginalLayout from '@theme-original/Layout';
+import { AuthProvider, useAuth } from '../components/Auth/AuthContext';
+import PersonalizationButton from '../components/Auth/PersonalizationButton';
 
 // Text selection handler as a React component
 const TextSelectionHandler = () => {
@@ -252,9 +254,9 @@ interface IApiResponse {
   citations: ICitation[];
 }
 
-// API service with fallback and CORS handling
+// API service with fallback and CORS handling - moved inside FunctionalChatbot to access auth context
 const apiService = {
-  async ask(request: IApiRequest): Promise<IApiResponse> {
+  async ask(request: IApiRequest, token?: string): Promise<IApiResponse> {
     try {
       // Use environment variable or default to localhost, but make it configurable
       // Check if we're in a browser environment (where process might not be defined)
@@ -289,11 +291,19 @@ const apiService = {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout to allow for agent processing
 
+      // Prepare headers with optional authentication
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add authorization header if token is available
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify(requestBody),
         signal: controller.signal, // Support for cancellation
         mode: 'cors', // Enable CORS
@@ -499,6 +509,7 @@ const ChatResponse = ({ messages }: { messages: IChatMessage[] }) => {
 
 // Main chatbot component
 const FunctionalChatbot = () => {
+  const { isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -506,6 +517,200 @@ const FunctionalChatbot = () => {
   const [chatSessions, setChatSessions] = useState<any[]>([]);
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // If user is not authenticated, show a message instead of the chatbot
+  if (!isAuthenticated) {
+    return (
+      <div className="chatbot-container">
+        {isOpen && (
+          <div
+            className="chatbot-panel"
+            style={{
+              position: 'fixed',
+              bottom: '20px',
+              right: '20px',
+              width: '400px',
+              height: '350px', // Increased height for better aesthetics
+              backgroundColor: 'var(--ifm-background-surface-color)', // Use theme background
+              borderRadius: '20px',
+              border: '1px solid var(--ifm-color-emphasis-300)', // Standard border
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.05)', // Reduced shadow intensity
+              zIndex: '99999',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center',
+              padding: '30px'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '15px',
+              width: '100%'
+            }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--ifm-color-primary-lightest)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '10px'
+              }}>
+                <span style={{ fontSize: '24px' }}>🔐</span>
+              </div>
+
+              <h3 style={{
+                color: 'var(--ifm-color-primary)',
+                marginBottom: '8px',
+                fontSize: '1.4em',
+                fontWeight: '600'
+              }}>
+                Authentication Required
+              </h3>
+
+              <p style={{
+                marginBottom: '20px',
+                color: 'var(--ifm-color-emphasis-700)',
+                lineHeight: '1.5',
+                fontSize: '15px'
+              }}>
+                Sign in to unlock personalized AI assistance and access advanced features.
+              </p>
+
+              <a
+                href="/physical-ai-humanoid-robotic-book/signin"
+                style={{
+                  backgroundColor: 'var(--ifm-color-primary)',
+                  color: 'white',
+                  padding: '12px 24px',
+                  borderRadius: '50px',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 6px rgba(99, 102, 241, 0.3)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}
+                onMouseOver={(e) => {
+                  (e.target as HTMLElement).style.transform = 'translateY(-2px)';
+                  (e.target as HTMLElement).style.boxShadow = '0 6px 12px rgba(99, 102, 241, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  (e.target as HTMLElement).style.transform = 'translateY(0)';
+                  (e.target as HTMLElement).style.boxShadow = '0 4px 6px rgba(99, 102, 241, 0.3)';
+                }}
+              >
+                <span>🔑</span> Sign In to Continue
+              </a>
+
+              <p style={{
+                marginTop: '15px',
+                fontSize: '13px',
+                color: 'var(--ifm-color-emphasis-600)',
+                textAlign: 'center'
+              }}>
+                New user? <a href="/physical-ai-humanoid-robotic-book/signup" style={{ color: 'var(--ifm-color-primary)', textDecoration: 'underline' }}>Sign up here</a>
+              </p>
+            </div>
+
+            <button
+              onClick={() => setIsOpen(false)}
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                background: 'var(--ifm-color-emphasis-200)', // Solid theme-appropriate background
+                border: '1px solid var(--ifm-color-emphasis-400)',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                fontSize: '18px',
+                cursor: 'pointer',
+                color: 'var(--ifm-color-emphasis-800)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                (e.target as HTMLElement).style.background = 'var(--ifm-color-emphasis-300)';
+                (e.target as HTMLElement).style.transform = 'scale(1.1)';
+              }}
+              onMouseOut={(e) => {
+                (e.target as HTMLElement).style.background = 'var(--ifm-color-emphasis-200)';
+                (e.target as HTMLElement).style.transform = 'scale(1)';
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+        {!isOpen && (
+          <>
+            <button
+              onClick={() => setIsOpen(true)}
+              className="chatbot-float-button"
+              style={{
+                width: '65px',
+                height: '65px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)', // Gradient background
+                color: 'white',
+                border: 'none',
+                fontSize: '26px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.1)',
+                position: 'fixed',
+                bottom: '20px',
+                right: '20px',
+                zIndex: '100000',
+                fontWeight: 'normal',
+                transition: 'all 0.3s ease',
+                animation: 'pulse 2s infinite'
+              }}
+              onMouseOver={(e) => {
+                (e.target as HTMLElement).style.transform = 'translateY(-3px) scale(1.05)';
+                (e.target as HTMLElement).style.boxShadow = '0 20px 25px -5px rgba(99, 102, 241, 0.4), 0 10px 10px -5px rgba(99, 102, 241, 0.2)';
+              }}
+              onMouseOut={(e) => {
+                (e.target as HTMLElement).style.transform = 'translateY(0) scale(1)';
+                (e.target as HTMLElement).style.boxShadow = '0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.1)';
+              }}
+            >
+              💬
+            </button>
+
+            {/* Add the pulse animation style */}
+            <style>{`
+              @keyframes pulse {
+                0% {
+                  box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+                }
+                70% {
+                  box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+                }
+                100% {
+                  box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+                }
+              }
+            `}</style>
+          </>
+        )}
+      </div>
+    );
+  }
 
   // Generate a temporary user ID for the session
   const getOrCreateUserId = () => {
@@ -520,14 +725,63 @@ const FunctionalChatbot = () => {
   // Fetch user chat history
   const fetchChatHistory = async () => {
     try {
-      const userId = getOrCreateUserId();
       setLoadingHistory(true);
-      const response = await fetch(`https://osamabinadnan-rag-with-neondb.hf.space/chat-history/${userId}`);
+      console.log('Fetching chat history...');
+
+      // Get the authentication token and user ID
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('No authentication token available');
+        return;
+      }
+
+      // Get current user ID from auth context
+      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL
+        ? process.env.REACT_APP_BACKEND_URL
+        : 'http://127.0.0.1:8000';
+
+      console.log('Fetching user info with token...');
+      const userResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error(`Failed to get user info: ${userResponse.status} ${userResponse.statusText}`);
+      }
+
+      const userData = await userResponse.json();
+      console.log('User data received:', userData);
+      const userId = userData.id;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add authorization header
+      headers['Authorization'] = `Bearer ${token}`;
+
+      console.log(`Fetching chat history for user: ${userId}`);
+      // Ensure the user ID is properly formatted as a UUID string
+      const userIdString = typeof userId === 'string' ? userId : userId.toString();
+
+      const response = await fetch(`${BACKEND_URL}/chat-history/${userIdString}`, {
+        headers: headers
+      });
+
       if (!response.ok) {
         throw new Error(`Failed to fetch chat history: ${response.status} ${response.statusText}`);
       }
+
       const data = await response.json();
-      setChatSessions(data.sessions || []);
+      console.log('Chat history data received:', data);
+
+      // Ensure the response has the expected structure
+      const sessions = Array.isArray(data) ? data : (data && data.sessions) ? data.sessions : [];
+      console.log('Processed sessions:', sessions);
+
+      setChatSessions(sessions);
     } catch (err) {
       console.error('Error fetching chat history:', err);
     } finally {
@@ -538,8 +792,40 @@ const FunctionalChatbot = () => {
   // Load a specific session history
   const loadSessionHistory = async (session: any) => {
     try {
-      const userId = getOrCreateUserId();
-      const response = await fetch(`https://osamabinadnan-rag-with-neondb.hf.space/chat-history/${userId}/session/${session.id}`);
+      // Get the authentication token and user ID
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('No authentication token available');
+        return;
+      }
+
+      // Get current user ID from auth context
+      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL
+        ? process.env.REACT_APP_BACKEND_URL
+        : 'http://127.0.0.1:8000';
+      const userResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error(`Failed to get user info: ${userResponse.status} ${userResponse.statusText}`);
+      }
+
+      const userData = await userResponse.json();
+      const userId = userData.id;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add authorization header
+      headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`${BACKEND_URL}/chat-history/${userId}/session/${session.id}`, {
+        headers: headers
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch session history: ${response.status} ${response.statusText}`);
       }
@@ -667,8 +953,33 @@ const FunctionalChatbot = () => {
 
       setMessages(prev => [...prev, loadingMessage]);
 
-      // Call the backend API
-      const response = await apiService.ask(request);
+      // Get the authentication token and user ID
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('Authentication token is required to send messages');
+      }
+
+      // Get current user ID from auth context
+      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL
+        ? process.env.REACT_APP_BACKEND_URL
+        : 'http://127.0.0.1:8000';
+
+      // Verify that the user is authenticated by fetching user info
+      const userResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error(`Failed to get user info: ${userResponse.status} ${userResponse.statusText}`);
+      }
+
+      const userData = await userResponse.json();
+      console.log('Sending message as user:', userData.id);
+
+      // Call the backend API with the token
+      const response = await apiService.ask(request, token);
 
       // Remove the loading message and add the actual response
       setMessages(prev => {
@@ -688,6 +999,13 @@ const FunctionalChatbot = () => {
 
         return [...updatedMessages, assistantMessage];
       });
+
+      // Refresh chat history after a short delay to ensure the session is created
+      setTimeout(() => {
+        if (showHistory) {
+          fetchChatHistory();
+        }
+      }, 1500); // Wait 1.5 seconds to ensure backend saves the session
     } catch (error) {
       // Remove the loading message and add the error message
       setMessages(prev => {
@@ -970,12 +1288,57 @@ const FunctionalChatbot = () => {
   );
 };
 
+// Component to handle the personalization button on document pages and other content pages
+const DocumentPersonalization = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [chapterUrl, setChapterUrl] = useState('');
+  const [chapterContent, setChapterContent] = useState('');
+
+  useEffect(() => {
+    // Check if we're on a document page (URL contains /docs/) or other content pages
+    const isDocsPage = window.location.pathname.includes('/docs/');
+    const isBlogPage = window.location.pathname.includes('/blog/'); // In case blog is added later
+    const isPage = window.location.pathname.includes('/pages/') || window.location.pathname === '/'; // For home page and other pages
+
+    if (isDocsPage || isPage) { // Show on docs and home pages
+      setIsVisible(true);
+      setChapterUrl(window.location.href);
+
+      // Get the main content of the page for personalization
+      const mainContentEl = document.querySelector('article.markdown') || document.querySelector('main div[class*="docItemContainer"]');
+      if (mainContentEl) {
+        setChapterContent(mainContentEl.textContent || '');
+      } else {
+        // Fallback to body content if main content not found
+        setChapterContent(document.body.textContent || '');
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [window.location.pathname]);
+
+  if (!isVisible) {
+    return null;
+  }
+
+  return (
+    <PersonalizationButton
+      chapterUrl={chapterUrl}
+      chapterContent={chapterContent}
+    />
+  );
+};
+
+// Import useEffect at the top of the file if not already imported
 export default function Layout(props) {
   return (
-    <>
-      <OriginalLayout {...props} />
-      <TextSelectionHandler />
-      <FunctionalChatbot />
-    </>
+    <AuthProvider>
+      <>
+        <OriginalLayout {...props} />
+        <TextSelectionHandler />
+        <FunctionalChatbot />
+        <DocumentPersonalization />
+      </>
+    </AuthProvider>
   );
 }

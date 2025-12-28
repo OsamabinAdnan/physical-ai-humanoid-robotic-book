@@ -1,6 +1,8 @@
 import logging
 import os
 import time
+import httpx
+import traceback
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 
@@ -17,6 +19,9 @@ from agent.agent import agent
 # Import database components
 from database import engine, AsyncDBSession
 from database.services import DatabaseService
+
+# Import the authentication middleware at the top to avoid circular imports
+from utils.auth_middleware import get_current_user as auth_get_current_user
 
 
 # Load environment variables
@@ -46,6 +51,7 @@ async def lifespan(app: FastAPI):
     # Cleanup database connection
     logger.info("Cleaning up database connection...")
     from database import engine
+    # Use sync disposal in async context
     await engine.dispose()
     logger.info("RAG Chatbot Agent API shutting down...")
 
@@ -79,7 +85,14 @@ from database.schemas import (
     ChatMessageSchema,
     ChatHistoryResponseSchema,
     UserChatHistoryResponseSchema,
-    CreateSessionRequestSchema
+    CreateSessionRequestSchema,
+    UserRegistrationSchema,
+    UserLoginSchema,
+    UserResponseSchema,
+    AuthResponseSchema,
+    TokenDataSchema,
+    CreatePersonalizedContentRequest,
+    PersonalizeContentResponse
 )
 
 
@@ -102,12 +115,20 @@ async def root():
     """
     return {
         "message": "RAG Chatbot Agent API",
-        "description": "API for the Physical AI & Humanoid Robotics textbook RAG agent",
+        "description": "API for the Physical AI & Humanoid Robotics textbook RAG agent with authentication and personalization",
         "version": "1.0.0",
         "endpoints": {
             "/": "This message",
-            "/chat": "POST endpoint to interact with the RAG agent (expects JSON with 'question' field)",
+            "/chat": "POST endpoint to interact with the RAG agent (requires JWT token in Authorization header)",
+            "/chat-history/{user_id}": "GET endpoint to retrieve user's chat sessions (requires JWT token in Authorization header)",
+            "/chat-history/{user_id}/session/{session_id}": "GET endpoint to retrieve specific session messages (requires JWT token in Authorization header)",
+            "/api/auth/register": "POST endpoint to register a new user with expertise levels",
+            "/api/auth/login": "POST endpoint to authenticate user with email/password",
+            "/api/auth/logout": "POST endpoint to end current user session",
+            "/api/auth/me": "GET endpoint to get current authenticated user information (requires JWT token in Authorization header)",
+            "/personalize": "POST endpoint to generate personalized content based on user background (requires JWT token in Authorization header)",
             "/health": "GET endpoint to check the health status of the agent backend",
+            "/db-health": "GET endpoint to check the health status of the database connection",
             "/docs": "Interactive API documentation (Swagger UI)",
             "/redoc": "Alternative API documentation (ReDoc)",
         },
@@ -117,6 +138,7 @@ async def root():
 @app.post("/chat", response_model=QueryResponse)
 async def chat_with_agent(
     request: QueryRequest,
+    current_user: dict = Depends(auth_get_current_user),  # Get authenticated user from token
     db_service: DatabaseService = Depends(get_db_service)
 ):
     """
@@ -124,6 +146,7 @@ async def chat_with_agent(
 
     Args:
         request (QueryRequest): User's question and parameters
+        current_user: Current authenticated user data from JWT token
         db_service: Database service for persistence
 
     Returns:
@@ -132,33 +155,46 @@ async def chat_with_agent(
     try:
         start_time = time.time()
 
-        logger.info(f"Processing chat request: {request.question}")
+        logger.info(f"Processing chat request for user: {current_user.get('id')} - {request.question}")
 
-        # For now, using a placeholder user ID - in the future, this will come from authentication
-        # For the current implementation, we'll create a temporary user if needed
+        # Get the authenticated user ID from the token
+        user_id_str = current_user.get('id') or current_user.get('sub')
+        if not user_id_str:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token: no user ID found"
+            )
+
+        # Convert user ID to UUID format
         import uuid
-        user_id = uuid.uuid4()  # Placeholder - will be replaced with actual user ID from auth later
+        try:
+            user_id = uuid.UUID(str(user_id_str))
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid user ID format in token"
+            )
 
-        # Create a temporary user record to satisfy the foreign key constraint
-        temp_user = await db_service.user.get_user_by_id(user_id)
-        if not temp_user:
-            temp_user = await db_service.user.create_user(
-                email=f"temp_{user_id}@example.com",  # Create a unique email
-                name=f"Temp User {str(user_id)[:8]}"  # Create a unique name
+        # Get the authenticated user from the database
+        user = await db_service.user.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
             )
 
         # Create or get chat session
         # For now, we'll create a new session for each request, but in the future we might want to
         # accept a session_id in the request to continue an existing conversation
         session = await db_service.chat_session.create_session(
-            user_id=temp_user.id,
+            user_id=user.id,
             title=f"Chat session: {request.question[:50]}..."  # Use first 50 chars of question as title
         )
 
         # Store the user's question in the database
         await db_service.chat_message.add_message(
             session_id=session.id,
-            user_id=temp_user.id,
+            user_id=user.id,
             role="user",
             content=request.question
         )
@@ -201,7 +237,7 @@ async def chat_with_agent(
         # Store the agent's response in the database
         await db_service.chat_message.add_message(
             session_id=session.id,
-            user_id=temp_user.id,  # Agent responses are stored with the user ID for now
+            user_id=user.id,  # Agent responses are stored with the user ID for now
             role="assistant",
             content=response_text
         )
@@ -308,6 +344,329 @@ async def get_session_history(
         logger.error(f"Error fetching session history: {e}")
         raise HTTPException(
             status_code=500, detail=f"Error fetching session history: {str(e)}"
+        )
+
+
+@app.post("/api/auth/register", response_model=AuthResponseSchema)
+async def register_user(
+    user_data: UserRegistrationSchema,
+    db_service: DatabaseService = Depends(get_db_service)
+):
+    """
+    Register a new user with background information.
+    """
+    try:
+        logger.info(f"Registering new user: {user_data.email}")
+
+        # Check if user already exists
+        existing_user = await db_service.user.get_user_by_email(user_data.email)
+        if existing_user:
+            raise HTTPException(
+                status_code=409,
+                detail="Email already registered"
+            )
+
+        # Hash the password
+        from utils.password_utils import get_password_hash
+        password_hash = get_password_hash(user_data.password)
+
+        # Create the user
+        user = await db_service.user.create_user(
+            email=user_data.email,
+            password_hash=password_hash,
+            name=user_data.name,
+            software_background=user_data.software_background,
+            hardware_background=user_data.hardware_background
+        )
+
+        # Create access token
+        from utils.token_utils import create_access_token
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+
+        return AuthResponseSchema(
+            success=True,
+            user_id=str(user.id),
+            session_token=access_token,
+            message="User registered successfully"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error registering user: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error registering user: {str(e)}"
+        )
+
+
+@app.post("/api/auth/login", response_model=AuthResponseSchema)
+async def login_user(
+    login_data: UserLoginSchema,
+    db_service: DatabaseService = Depends(get_db_service)
+):
+    """
+    Authenticate user and return session token.
+    """
+    try:
+        logger.info(f"User login attempt: {login_data.email}")
+
+        # Get user by email
+        user = await db_service.user.get_user_by_email(login_data.email)
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or password"
+            )
+
+        # Verify password
+        from utils.password_utils import verify_password
+        if not verify_password(login_data.password, user.password_hash):
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or password"
+            )
+
+        # Create access token
+        from utils.token_utils import create_access_token
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+
+        return AuthResponseSchema(
+            success=True,
+            user_id=str(user.id),
+            session_token=access_token,
+            message="Login successful"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during login: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error during login: {str(e)}"
+        )
+
+
+@app.post("/api/auth/logout")
+async def logout_user():
+    """
+    Logout user (client-side token removal is sufficient).
+    """
+    return {"success": True, "message": "Logout successful"}
+
+
+async def get_current_user_from_token(
+    current_user: dict = Depends(auth_get_current_user)
+):
+    """
+    Get current user from token using the auth middleware.
+    """
+    return current_user
+
+
+@app.get("/api/auth/me", response_model=UserResponseSchema)
+async def get_current_user(
+    current_user: dict = Depends(get_current_user_from_token)
+):
+    """
+    Get current authenticated user information.
+    """
+    try:
+        user_data = {
+            'id': current_user.get('id'),
+            'email': current_user.get('email'),
+            'name': current_user.get('name'),
+            'software_background': current_user.get('software_background'),
+            'hardware_background': current_user.get('hardware_background'),
+            'email_verified': current_user.get('email_verified'),
+            'created_at': current_user.get('created_at'),
+            'updated_at': current_user.get('updated_at')
+        }
+        logger.info(f"User data for schema: {user_data}")
+
+        return UserResponseSchema(**user_data)
+    except Exception as e:
+        logger.error(f"Error getting current user: {e}")
+        logger.error(f"User data that caused error: {current_user}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500, detail=f"Error getting current user: {str(e)}"
+        )
+
+
+@app.post("/personalize", response_model=PersonalizeContentResponse)
+async def personalize_content(
+    request: CreatePersonalizedContentRequest,
+    current_user: dict = Depends(auth_get_current_user),
+    db_service: DatabaseService = Depends(get_db_service)
+):
+    """
+    Generate personalized content based on user background and chapter context.
+    """
+    try:
+        logger.info(f"Personalizing content for user: {current_user.get('id')}")
+        logger.info(f"Chapter URL: {request.chapter_url}")
+        logger.info(f"Chapter content length: {len(request.chapter_content)} characters")
+
+        # Extract chapter ID from URL for logging
+        import re
+        chapter_path_match = re.search(r'/docs/(.+)', request.chapter_url)
+        chapter_id = chapter_path_match.group(1) if chapter_path_match else request.chapter_url.split('/')[-1]
+        logger.info(f"Chapter ID being personalized: {chapter_id}")
+        logger.info(f"User expertise - Software: {current_user.get('software_background')}, Hardware: {current_user.get('hardware_background')}")
+
+        from database.schemas import PersonalizeContentResponse
+        from hashlib import sha256
+        import openai
+        import uuid
+
+        # Extract chapter ID from URL (this handles both localhost and production URLs)
+        import re
+        # Extract the chapter path from the URL
+        chapter_path_match = re.search(r'/docs/(.+)', request.chapter_url)
+        chapter_id = chapter_path_match.group(1) if chapter_path_match else request.chapter_url.split('/')[-1]
+
+        # Get user's background information
+        user = await db_service.user.get_user_by_id(uuid.UUID(current_user.get('id')))
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
+
+        # Calculate hash of original content
+        original_content_hash = sha256(request.chapter_content.encode()).hexdigest()
+
+        # Check if personalized content already exists and is still valid
+        existing_content = await db_service.personalized_content.get_personalized_content_by_user_and_chapter(
+            user.id, chapter_id
+        )
+
+        if existing_content and existing_content.original_content_hash == original_content_hash:
+            # Return existing personalized content
+            return PersonalizeContentResponse(
+                success=True,
+                personalized_summary=existing_content.personalized_summary,
+                message="Personalized content retrieved from cache"
+            )
+
+        # Determine the user's relevant expertise level for personalization
+        # For now, we'll use the lower of the two expertise levels (software and hardware)
+        # In a more sophisticated system, we'd determine which is more relevant to the content
+        expertise_level = user.software_background
+        if user.hardware_background == "beginner" or (user.hardware_background == "intermediate" and expertise_level != "beginner"):
+            expertise_level = user.hardware_background
+
+        # Prepare the prompt for the LLM
+        prompt = f"""
+You are an educational content personalization expert. Your task is to adapt the following textbook content based on the user's expertise level.
+
+USER'S EXPERTISE:
+- Software Background: {user.software_background}
+- Hardware Background: {user.hardware_background}
+
+ORIGINAL CONTENT:
+{request.chapter_content}
+
+INSTRUCTIONS:
+1. Adapt the content to match the user's expertise level ({expertise_level}).
+2. If the user is a beginner, explain concepts simply with analogies and clear examples.
+3. If the user is intermediate, provide more detail and context while still explaining fundamentals.
+4. If the user is an expert, dive deep into technical aspects, advanced concepts, and applications.
+
+Please provide a personalized summary that is tailored to the user's expertise level while preserving the essential information from the original content.
+"""
+
+        # Call the OpenRouter API to generate personalized content
+        openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+        base_url = os.getenv("OPENROUTER_URL", "https://openrouter.ai/api/v1")
+        # Ensure the URL ends with /chat/completions for the completions endpoint
+        if not base_url.endswith('/chat/completions'):
+            if base_url.endswith('/v1'):
+                openrouter_url = base_url + '/chat/completions'
+            else:
+                openrouter_url = base_url.rstrip('/') + '/v1/chat/completions'
+        else:
+            openrouter_url = base_url
+
+        headers = {
+            "Authorization": f"Bearer {openrouter_api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": "mistralai/mistral-7b-instruct:free",  # Using a free model that's known to be available on OpenRouter
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1000
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                openrouter_url,
+                json=payload,
+                headers=headers,
+                timeout=30.0  # 30 second timeout
+            )
+
+            if response.status_code != 200:
+                logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error calling OpenRouter API: {response.status_code} - {response.text}"
+                )
+
+            # Check if response body is empty
+            if not response.text:
+                logger.error("OpenRouter API returned empty response")
+                raise HTTPException(
+                    status_code=500,
+                    detail="OpenRouter API returned empty response"
+                )
+
+            try:
+                response_data = response.json()
+            except ValueError as e:
+                logger.error(f"Error parsing OpenRouter API response as JSON: {e}")
+                logger.error(f"Response text: {response.text}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error parsing OpenRouter API response: {str(e)}"
+                )
+
+            # Check if required fields exist in response
+            if "choices" not in response_data or not response_data["choices"]:
+                logger.error(f"OpenRouter API response missing choices: {response_data}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="OpenRouter API response missing choices"
+                )
+
+            personalized_summary = response_data["choices"][0]["message"]["content"].strip()
+
+        # Save the personalized content to the database
+        personalized_content = await db_service.personalized_content.create_personalized_content(
+            user_id=user.id,
+            chapter_id=chapter_id,
+            chapter_url=request.chapter_url,
+            original_content_hash=original_content_hash,
+            personalized_summary=personalized_summary,
+            personalization_level=expertise_level
+        )
+
+        logger.info(f"Personalization completed successfully for user {current_user.get('id')} and chapter {chapter_id}")
+
+        return PersonalizeContentResponse(
+            success=True,
+            personalized_summary=personalized_summary,
+            message="Content personalized successfully"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error personalizing content: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error personalizing content: {str(e)}"
         )
 
 

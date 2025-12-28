@@ -18,7 +18,11 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)  # Added for authentication
     name = Column(String(255), nullable=True)
+    software_background = Column(String(20), nullable=False)  # Added for personalization
+    hardware_background = Column(String(20), nullable=False)  # Added for personalization
+    email_verified = Column(Boolean, default=False)  # Added for authentication
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -78,3 +82,27 @@ class Document(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Additional metadata can be stored in a JSON column if needed
+
+
+class PersonalizedContent(Base):
+    """
+    Personalized Content model for storing AI-generated personalized content summaries.
+    """
+    __tablename__ = "personalized_contents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    chapter_id = Column(String(500), nullable=False)  # Identifier for the chapter that was personalized
+    chapter_url = Column(String(1000), nullable=False)  # Full URL of the chapter that was personalized
+    original_content_hash = Column(String(255), nullable=False)  # Hash of the original chapter content to detect changes
+    personalized_summary = Column(Text, nullable=False)  # The AI-generated personalized summary/roadmap
+    personalization_level = Column(String(20), nullable=False)  # Expertise level for which content was personalized
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="personalized_contents")
+
+
+# Add relationship to User model
+User.personalized_contents = relationship("PersonalizedContent", back_populates="user", cascade="all, delete-orphan")

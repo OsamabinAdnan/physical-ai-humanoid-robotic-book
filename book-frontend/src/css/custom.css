@@ -4,6 +4,8 @@
  * work well for content-centric websites.
  */
 
+@import url('./auth-styles.css');
+
 /* Enhanced color palette for Physical AI & Humanoid Robotics Textbook */
 :root {
   --ifm-color-primary: #1a73e8; /* Vibrant blue for primary actions */
@@ -83,7 +85,7 @@ body {
 }
 
 .navbar__inner {
-  max-width: 1400px;
+  max-width: 1980px;
   margin: 0 auto;
 }
 

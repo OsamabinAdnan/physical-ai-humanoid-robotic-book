@@ -2,29 +2,80 @@
 
 ## Authentication System
 
-This project now includes a custom authentication system that follows Better-Auth API patterns, providing:
+This project now includes a comprehensive authentication system that follows Better-Auth API patterns, providing:
 
 - User registration with expertise level collection (software/hardware - beginner/intermediate/advanced)
-- Secure login/logout functionality
-- JWT-based session management
+- Secure login/logout functionality with password hashing
+- JWT-based session management with token validation
 - Protected API endpoints for chat functionality
 - Data isolation between authenticated users
+- Email verification support
+- Session-based user persistence
 
 ### API Endpoints
 
 #### Authentication Endpoints
 
-- `POST /api/auth/register` - Register a new user with expertise levels
-- `POST /api/auth/login` - Authenticate user with email/password
-- `POST /api/auth/logout` - End current user session
+- `POST /api/auth/register` - Register a new user with expertise levels and email
+- `POST /api/auth/login` - Authenticate user with email/password and return JWT token
+- `POST /api/auth/logout` - End current user session (client-side token removal)
+- `GET /api/auth/me` - Get current authenticated user information
 
 #### Protected Endpoints
 
-- `POST /chat` - Chat with authenticated user (requires JWT token)
-- `GET /chat-history` - Get chat history for authenticated user (requires JWT token)
-- `GET /chat-history/session/{session_id}` - Get specific session history (requires JWT token)
+- `POST /chat` - Chat with authenticated user (requires JWT token in Authorization header)
+- `GET /chat-history/{user_id}` - Get chat history for authenticated user (requires JWT token)
+- `GET /chat-history/{user_id}/session/{session_id}` - Get specific session history (requires JWT token)
+- `POST /personalize` - Generate personalized content based on user background (requires JWT token)
 
-For more details, see the backend/auth/README.md file.
+## Content Personalization
+
+The platform now includes advanced content personalization based on user expertise levels:
+
+- Users register with their software and hardware background levels (beginner/intermediate/advanced)
+- A "Personalize Content" button appears on chapter pages for authenticated users
+- Content is dynamically adapted using AI based on the user's expertise level
+- Personalized content is cached in the database for performance optimization
+- Personalized content includes tailored explanations, examples, and depth of information
+- Users can toggle between original and personalized content views
+- Content personalization leverages the OpenRouter API with Mistral-7B model
+
+### Personalization API Endpoints
+
+- `POST /personalize` - Generate personalized content based on user background and chapter context
+  - Request body: `{ "chapter_url": string, "chapter_content": string }`
+  - Response: `{ "success": boolean, "personalized_summary": string, "message": string }`
+
+### Database Schema Updates
+
+The system now includes a `personalized_contents` table with the following structure:
+- `id`: UUID (Primary Key)
+- `user_id`: UUID (Foreign Key to users table)
+- `chapter_id`: String (Identifier for the chapter that was personalized)
+- `chapter_url`: String (Full URL of the chapter that was personalized)
+- `original_content_hash`: String (Hash of original content to detect changes)
+- `personalized_summary`: Text (AI-generated personalized content)
+- `personalization_level`: String (Expertise level for which content was personalized)
+- `created_at`: DateTime (Timestamp when personalized content was created)
+- `updated_at`: DateTime (Timestamp when personalized content was last updated)
+
+## Frontend Authentication Components
+
+The frontend includes several new authentication-related components:
+
+- `AuthContext.tsx` - Context provider for authentication state management
+- `LoginForm.tsx` - Login form component with validation
+- `RegisterForm.tsx` - Registration form with expertise level selection
+- `PersonalizationButton.tsx` - Button component for content personalization with modal view
+- Integration with Docusaurus for seamless authentication flow
+
+### Authentication Features in Frontend
+
+- Persistent authentication state using localStorage
+- Protected routes and conditional rendering based on authentication status
+- User profile information available throughout the application
+- Automatic redirection to login for protected features
+- Secure token handling and validation
 
 ## Project Overview
 
@@ -61,7 +112,7 @@ This is a comprehensive educational platform that combines a textbook on Physica
 ### 2. Backend (backend)
 - FastAPI-based REST API with multiple endpoints
 - RAG agent implementation using:
-  - OpenRouter LLM (mistralai/devstral-2512:free model) as the language model
+  - OpenRouter LLM (mistralai/mistral-7b-instruct:free model) as the language model for personalization
   - Qdrant Cloud for vector storage of textbook embeddings
   - Sentence transformers for generating text embeddings
 - Neon Serverless Postgres database for:
@@ -105,7 +156,7 @@ This is a comprehensive educational platform that combines a textbook on Physica
 
 ### Backend:
 - Python with FastAPI
-- OpenRouter API for language model (using mistralai/devstral-2512:free model)
+- OpenRouter API for language model (using mistralai/mistral-7b-instruct:free model for personalization)
 - Qdrant Cloud for vector storage
 - Sentence Transformers for embeddings
 - Neon Serverless Postgres with SQLAlchemy
@@ -191,7 +242,7 @@ pip install -r requirements.txt
 4. Set up environment variables in `.env`:
 ```env
 OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_URL=your_openrouter_url
+OPENROUTER_URL=your_openrouter_url  # Should end with /v1/chat/completions or be base URL
 QDRANT_CLUSTER_ENDPOINT=your_qdrant_cluster_endpoint
 QDRANT_API_KEY=your_qdrant_api_key
 NEON_DATABASE_URL=your_neon_database_url
@@ -242,11 +293,16 @@ npm start
 ### Backend API
 
 - `GET /` - Root endpoint with API information
-- `POST /chat` - Chat with the RAG agent
-- `GET /chat-history/{user_id}` - Get user's chat sessions
-- `GET /chat-history/{user_id}/session/{session_id}` - Get specific session messages
+- `POST /chat` - Chat with the RAG agent (requires JWT token)
+- `GET /chat-history/{user_id}` - Get user's chat sessions (requires JWT token)
+- `GET /chat-history/{user_id}/session/{session_id}` - Get specific session messages (requires JWT token)
 - `GET /health` - Health check for the backend
 - `GET /db-health` - Health check for the database
+- `POST /api/auth/register` - Register a new user with expertise levels
+- `POST /api/auth/login` - Authenticate user with email/password
+- `POST /api/auth/logout` - End current user session
+- `GET /api/auth/me` - Get current user information (requires JWT token)
+- `POST /personalize` - Generate personalized content based on user background (requires JWT token)
 
 ### Request/Response Examples
 
@@ -255,6 +311,33 @@ npm start
 {
   "question": "What is Physical AI?",
   "top_k": 5
+}
+```
+
+**Authentication Request (Register):**
+```json
+{
+  "email": "user@example.com",
+  "password": "secure_password",
+  "name": "John Doe",
+  "software_background": "beginner",
+  "hardware_background": "intermediate"
+}
+```
+
+**Authentication Request (Login):**
+```json
+{
+  "email": "user@example.com",
+  "password": "secure_password"
+}
+```
+
+**Personalization Request:**
+```json
+{
+  "chapter_url": "https://example.com/docs/module1/chapter1",
+  "chapter_content": "Full chapter content to be personalized..."
 }
 ```
 
@@ -344,7 +427,11 @@ Database entities:
 ### Users Table
 - `id`: UUID (Primary Key)
 - `email`: String (Unique)
+- `password_hash`: String (Hashed password for authentication)
 - `name`: String
+- `software_background`: String (User's expertise level: beginner/intermediate/advanced)
+- `hardware_background`: String (User's expertise level: beginner/intermediate/advanced)
+- `email_verified`: Boolean (Whether the user's email has been verified)
 - `created_at`: DateTime
 - `updated_at`: DateTime
 
@@ -372,6 +459,17 @@ Database entities:
 - `original_filename`: String
 - `ingestion_status`: String
 - `created_at`: DateTime
+
+### Personalized Contents Table
+- `id`: UUID (Primary Key)
+- `user_id`: UUID (Foreign Key to users table)
+- `chapter_id`: String (Identifier for the chapter that was personalized)
+- `chapter_url`: String (Full URL of the chapter that was personalized)
+- `original_content_hash`: String (Hash of original content to detect changes)
+- `personalized_summary`: Text (AI-generated personalized content)
+- `personalization_level`: String (Expertise level for which content was personalized)
+- `created_at`: DateTime (Timestamp when personalized content was created)
+- `updated_at`: DateTime (Timestamp when personalized content was last updated)
 
 ## Testing
 
@@ -407,7 +505,7 @@ The backend can be deployed to Hugging Face Spaces or similar platforms:
 ### Backend (.env)
 ```
 OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_URL=your_openrouter_url
+OPENROUTER_URL=your_openrouter_url  # Should end with /v1/chat/completions or be base URL
 QDRANT_CLUSTER_ENDPOINT=your_qdrant_cluster_endpoint
 QDRANT_API_KEY=your_qdrant_api_key
 NEON_DATABASE_URL=your_neon_database_url
