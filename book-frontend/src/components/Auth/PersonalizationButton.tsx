@@ -33,7 +33,7 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
     setError(null);
 
     try {
-      const BACKEND_URL = typeof process !== 'undefined' && process.env ? (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000') : 'http://127.0.0.1:8000';
+      const BACKEND_URL = typeof process !== 'undefined' && process.env ? ("https://osamabinadnan-rag-with-neondb.hf.space") : 'http://127.0.0.1:8000';
       const response = await fetch(`${BACKEND_URL}/personalize`, {
         method: 'POST',
         headers: {

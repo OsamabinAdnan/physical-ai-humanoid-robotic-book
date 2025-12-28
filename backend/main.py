@@ -508,8 +508,11 @@ async def personalize_content(
 
         # Extract chapter ID from URL for logging
         import re
-        chapter_path_match = re.search(r'/docs/(.+)', request.chapter_url)
+        # Handle different URL formats (GitHub Pages, localhost, etc.)
+        chapter_path_match = re.search(r'/docs/(.+?)(?:\.html)?(?:[#?].*)?$', request.chapter_url)
         chapter_id = chapter_path_match.group(1) if chapter_path_match else request.chapter_url.split('/')[-1]
+        # Clean up the chapter_id to ensure it's a valid identifier
+        chapter_id = re.sub(r'[^\w\-_]', '_', chapter_id)
         logger.info(f"Chapter ID being personalized: {chapter_id}")
         logger.info(f"User expertise - Software: {current_user.get('software_background')}, Hardware: {current_user.get('hardware_background')}")
 
@@ -571,8 +574,11 @@ INSTRUCTIONS:
 2. If the user is a beginner, explain concepts simply with analogies and clear examples.
 3. If the user is intermediate, provide more detail and context while still explaining fundamentals.
 4. If the user is an expert, dive deep into technical aspects, advanced concepts, and applications.
+5. CRITICAL: Preserve the original content structure including headings, subheadings, bullet points, numbered lists, code blocks, and tables.
+6. Maintain the same hierarchy and formatting as the original content.
+7. Only modify the explanations and examples based on the user's expertise level, keeping the educational flow intact.
 
-Please provide a personalized summary that is tailored to the user's expertise level while preserving the essential information from the original content.
+Please provide a personalized version of the content that is tailored to the user's expertise level while preserving the original structure and formatting.
 """
 
         # Call the OpenRouter API to generate personalized content
