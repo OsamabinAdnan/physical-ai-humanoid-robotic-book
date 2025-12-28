@@ -47,9 +47,9 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
         throw new Error('Authentication token not found');
       }
 
-      const BACKEND_URL = process.env.NODE_ENV === 'production'
+      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
         ? 'https://osamabinadnan-rag-with-neondb.hf.space'
-        : (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000');
+        : (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL ? process.env.REACT_APP_BACKEND_URL : 'http://127.0.0.1:8000');
       // Ensure the chapter URL has the protocol (required by backend validator)
       const fullChapterUrl = chapterUrl.startsWith('http') ? chapterUrl : `${window.location.protocol}//${window.location.host}${chapterUrl}`;
 
