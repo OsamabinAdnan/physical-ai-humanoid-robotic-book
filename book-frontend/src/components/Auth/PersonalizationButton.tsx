@@ -41,6 +41,12 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
     abortControllerRef.current = abortController;
 
     try {
+      // Get the token from the auth context instead of localStorage
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
       const BACKEND_URL = process.env.NODE_ENV === 'production'
         ? 'https://osamabinadnan-rag-with-neondb.hf.space'
         : (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000');
@@ -48,7 +54,7 @@ const PersonalizationButton: React.FC<PersonalizationButtonProps> = ({ chapterUr
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           chapter_url: chapterUrl,
