@@ -60,7 +60,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const BACKEND_URL = typeof process !== 'undefined' && process.env ? "https://osamabinadnan-rag-with-neondb.hf.space" : 'http://127.0.0.1:8000';
+      const BACKEND_URL = process.env.NODE_ENV === 'production'
+        ? 'https://osamabinadnan-rag-with-neondb.hf.space'
+        : (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000');
       const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -108,7 +110,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     hardware_background: string;
   }) => {
     try {
-      const BACKEND_URL = typeof process !== 'undefined' && process.env ? "https://osamabinadnan-rag-with-neondb.hf.space" : 'http://127.0.0.1:8000';
+      const BACKEND_URL = process.env.NODE_ENV === 'production'
+        ? 'https://osamabinadnan-rag-with-neondb.hf.space'
+        : (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000');
       const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: 'POST',
         headers: {

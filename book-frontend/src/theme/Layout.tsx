@@ -737,9 +737,9 @@ const FunctionalChatbot = () => {
       }
 
       // Get current user ID from auth context
-      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL
-        ? process.env.REACT_APP_BACKEND_URL
-        : 'http://127.0.0.1:8000';
+      const BACKEND_URL = process.env.NODE_ENV === 'production'
+        ? 'https://osamabinadnan-rag-with-neondb.hf.space'
+        : (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000');
 
       console.log('Fetching user info with token...');
       const userResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
@@ -801,9 +801,9 @@ const FunctionalChatbot = () => {
       }
 
       // Get current user ID from auth context
-      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL
-        ? process.env.REACT_APP_BACKEND_URL
-        : 'http://127.0.0.1:8000';
+      const BACKEND_URL = process.env.NODE_ENV === 'production'
+        ? 'https://osamabinadnan-rag-with-neondb.hf.space'
+        : (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000');
       const userResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -961,9 +961,9 @@ const FunctionalChatbot = () => {
       }
 
       // Get current user ID from auth context
-      const BACKEND_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL
-        ? process.env.REACT_APP_BACKEND_URL
-        : 'http://127.0.0.1:8000';
+      const BACKEND_URL = process.env.NODE_ENV === 'production'
+        ? 'https://osamabinadnan-rag-with-neondb.hf.space'
+        : (process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000');
 
       // Verify that the user is authenticated by fetching user info
       const userResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
