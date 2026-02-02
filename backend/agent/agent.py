@@ -135,7 +135,7 @@ external_client: AsyncOpenAI = AsyncOpenAI(
 
 # Model Initialization - using Qwen model with OpenAI-compatible interface
 model: OpenAIChatCompletionsModel = OpenAIChatCompletionsModel(
-    model="mistralai/devstral-2512:free",  # Using OpenRouter free model
+    model="openai/gpt-4o-mini",  # Using Google Gemini Flash (Highly reliable free model)
     openai_client=external_client
 )
 
@@ -156,7 +156,7 @@ def retrieve(query: str, top_k: int = 2) -> Dict[str, Any]:
     """
     try:
         logger.info(f"Processing retrieval query: {query}")
-
+        
         # Generate embedding for the query
         query_embedding = get_embedding(query)
 

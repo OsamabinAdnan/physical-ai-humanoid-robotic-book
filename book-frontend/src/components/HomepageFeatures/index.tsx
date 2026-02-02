@@ -1,56 +1,73 @@
 import React from 'react';
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
+import Link from '@docusaurus/Link';
 import styles from './styles.module.css';
 
 type FeatureItem = {
   title: string;
   emoji: string;
+  link: string;
   description: React.JSX.Element;
 };
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Physical AI & Robotics',
+    title: 'Module 1: The Robotic Nervous System',
     emoji: '🤖',
+    link: '/docs/module-1',
     description: (
       <>
-        Explore the convergence of artificial intelligence and physical systems. Learn how AI agents interact with the real world through sensors, actuators, and robotic platforms.
+        Build the foundation with ROS 2 (Robot Operating System). Learn nodes, topics, services, and actions to create responsive robotic systems.
       </>
     ),
   },
   {
-    title: 'Humanoid Robotics',
-    emoji: '🦾',
+    title: 'Module 2: The Digital Twin',
+    emoji: '🌐',
+    link: '/docs/module-2',
     description: (
       <>
-        Master the design and control of humanoid robots with advanced locomotion, manipulation, and human-robot interaction capabilities.
+        Master simulation environments with Gazebo and Unity. Create physics-accurate digital twins to test algorithms safely before deployment.
       </>
     ),
   },
   {
-    title: 'Vision-Language-Action',
+    title: 'Module 3: The AI-Robot Brain',
+    emoji: '🧠',
+    link: '/docs/module-3',
+    description: (
+      <>
+        Leverage NVIDIA Isaac™ for advanced perception and control. Integrate deep learning models for object detection and navigation.
+      </>
+    ),
+  },
+  {
+    title: 'Module 4: Vision-Language-Action',
     emoji: '👁️',
+    link: '/docs/module-4',
     description: (
       <>
-        Implement cutting-edge Vision-Language-Action systems that enable robots to understand natural language commands and execute complex tasks.
+        Implement state-of-the-art VLA models. Enable robots to understand natural language commands and execute complex physical tasks.
       </>
     ),
   },
 ];
 
-function Feature({title, emoji, description}: FeatureItem) {
+function Feature({title, emoji, link, description}: FeatureItem) {
   return (
-    <div className={clsx('col col--4')}>
-      <div className="text--center padding-horiz--md">
-        <div className={styles.featureSvg}>
-          <span style={{ fontSize: '3rem', display: 'block' }}>{emoji}</span>
+    <div className={clsx('col col--3')}> {/* Changed from col--4 (3 cols) to col--3 (4 cols) */}
+      <Link to={link} className={styles.featureLink}>
+        <div className={styles.featureCard}>
+          <div className={styles.featureIconWrapper}>
+              {emoji}
+          </div>
+          <Heading as="h3" className={styles.featureHeading}>
+            {title}
+          </Heading>
+          <p className={styles.featureDescription}>{description}</p>
         </div>
-        <Heading as="h3" className={styles.featureHeading}>
-          {title}
-        </Heading>
-        <p className={styles.featureDescription}>{description}</p>
-      </div>
+      </Link>
     </div>
   );
 }
@@ -59,6 +76,9 @@ export default function HomepageFeatures(): React.JSX.Element {
   return (
     <section className={styles.features}>
       <div className="container">
+        <Heading as="h2" className={styles.sectionHeading}>
+          Explore the Textbook Modules
+        </Heading>
         <div className="row">
           {FeatureList.map((props, idx) => (
             <Feature key={idx} {...props} />

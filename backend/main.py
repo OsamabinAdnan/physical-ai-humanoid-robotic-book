@@ -614,7 +614,7 @@ Please provide a personalized version of the content that is tailored to the use
         }
 
         payload = {
-            "model": "mistralai/mistral-7b-instruct:free",  # Using a free model that's known to be available on OpenRouter
+            "model": "tngtech/deepseek-r1t2-chimera:free",  # Using a free model that's known to be available on OpenRouter
             "messages": [
                 {"role": "user", "content": prompt}
             ],

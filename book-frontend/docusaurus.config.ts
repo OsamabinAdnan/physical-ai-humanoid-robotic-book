@@ -98,6 +98,7 @@ const config: Config = {
           to: '/signup',
           label: 'Sign Up',
           position: 'right',
+          className: 'button button--primary button--sm margin-left--sm', // Style Sign Up as a button
         },
         {
           to: '/profile',
@@ -112,7 +113,7 @@ const config: Config = {
       ],
     },
     footer: {
-      style: 'dark',
+      style: 'light', // Switch to light footer for cleaner look (or keep dark if preferred, but styled)
       links: [
         {
           title: 'Textbook',
